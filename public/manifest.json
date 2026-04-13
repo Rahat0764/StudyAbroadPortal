@@ -1,6 +1,7 @@
 {
   "name": "BideshPro",
   "short_name": "Bidesh",
+  "description": "AI-powered scholarship finder for Bangladeshi students",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#03050a",
