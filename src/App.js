@@ -392,7 +392,7 @@ function MainApp() {
                   <span className="text-[#d4a843]">for Bangladeshis</span>
                 </h2>
                 <p className="text-[#7a94ad] max-w-2xl text-base md:text-lg">
-                  AI ইন্টারনেট সার্চ করে পার্টটাইম জব, লিভিং এক্সপেন্স এবং রিয়েল স্কলারশিপের তথ্য বের করবে।
+                  AI will search verified info for you...
                 </p>
               </div>
               {analyticsData.length > 0 && (
