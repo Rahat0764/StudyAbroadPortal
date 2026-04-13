@@ -681,59 +681,60 @@ function MainApp() {
     );
   }, [debouncedSearch]);
 
+
+  // ✅ FIX: Universal dynamic search prompt without hardcoding specific country rules
   const buildPrompt = useCallback((country, lvl, bg) => {
     const lvlText = lvl === "all" ? "All Levels (Bachelor, Master's & PhD)" : lvl.charAt(0).toUpperCase() + lvl.slice(1);
     const bgText  = bg  === "all" ? "All Backgrounds (Science, Arts, Commerce)" : bg.charAt(0).toUpperCase() + bg.slice(1);
 
     return `You are a highly experienced international scholarship consultant specializing in helping Bangladeshi students study abroad.
 
-Provide COMPREHENSIVE, ACCURATE, and CURRENT information for:
-🎯 Country: ${country.name}
-🎓 Degree Level: ${lvlText}
-📚 Academic Background: ${bgText}
+CRITICAL DIRECTIVE: YOU MUST USE GOOGLE SEARCH to find the most current, real-time, and authentic data. Do NOT rely on pre-trained assumptions or hallucinate generic facts. You must conduct active searches for the constraints below.
+
+🎯 Target Country: ${country.name}
+🎓 Target Degree Level: ${lvlText}
+📚 Target Background: ${bgText}
 🌐 Output Language: ${language}
 
-⚠️ CRITICAL RULES:
-1. If level is "bachelor", ONLY show bachelor-level scholarships — no Masters or PhD programs.
-2. EVERY scholarship MUST have its official application portal link.
-3. Write ENTIRELY in ${language} language.
-4. Include REAL, working URLs only — do not fabricate links.
-5. Always include Bangladesh-specific quota/seat information where available.
+⚠️ STRICT SEARCH & FILTERING RULES (DO NOT VIOLATE):
+1. EXACT BACKGROUND MATCH: Use Google Search to verify that the universities you suggest ACTUALLY offer "${bgText}" programs. 
+   - Example Violation: Do NOT suggest specialized Engineering/Tech universities (like KFUPM, MIT, KAIST) if the background is Arts or Commerce.
+2. EXACT LEVEL MATCH: Verify that the scholarship and university are open for "${lvlText}" to international students. If a university only takes Master's/PhD, do NOT include it for Bachelor.
+3. LATEST QUOTAS & UPDATES: Search specifically for "Bangladeshi student quota ${country.name} scholarship recent updates". If there is a specific quota (e.g., 500 seats), YOU MUST INCLUDE IT. If there is no specific quota, state that it is open globally.
+4. ACCURATE DEADLINES: Search for the exact application deadlines for the CURRENT YEAR. 
+   - If not published yet, provide last year's exact dates and explicitly mention "(গত বছরের তথ্য অনুযায়ী / Based on last year's cycle)". Do not write vague things like "Varies".
+5. GENUINE LINKS: Every official site and application portal link MUST be a real, working URL found via search. Do not fabricate URLs.
 
 ═══════════════════════════════════
 📋 REQUIRED SECTIONS (use these exact headers):
 ═══════════════════════════════════
 
 ## 🎓 Scholarships in ${country.name}
-
-For EACH scholarship, use this format:
+(List 2-3 highly relevant scholarships matching the STRICT criteria)
 
 ### 🏆 [Official Scholarship Name]
 - 💰 **Coverage:** (tuition + stipend amount in local currency AND USD + accommodation + airfare + insurance)
-- 📅 **Deadline:** (specific month/date)
+- 📅 **Deadline:** (EXACT dates from your search for this year, or last year if unpublished)
 - 🗓 **Intake:** (semester/month)
 - ⏳ **Duration:** (by level)
 - ✅ **Eligibility:**
-  - Age: ...
-  - SSC GPA (out of 5.0): ...
-  - HSC GPA (out of 5.0): ...
-  - Bachelor CGPA (out of 4.0): ...
-  - Work experience: ...
-  - Backgrounds: Science / Arts / Commerce
+  - Age limit: ...
+  - SSC/HSC GPA (out of 5.0) or Bachelor CGPA (out of 4.0): ...
+  - Backgrounds accepted: (Must explicitly confirm ${bgText})
 - 📄 **Required Documents:** (complete list)
-- 🗣 **Language:** (English/local + test requirement e.g. IELTS score)
-- 🇧🇩 **Bangladesh Quota:** (exact number of seats if available)
-- 🔗 **Official Site:** [name](URL)
-- 📝 **Apply Here:** [portal name](URL)
+- 🗣 **Language:** (English/local + IELTS/TOEFL score requirement)
+- 🇧🇩 **Bangladesh Quota:** (Exact number of seats based on latest news via Google Search, if any)
+- 🔗 **Official Site:** [Name](REAL_URL)
+- 📝 **Apply Here:** [Portal](REAL_URL)
 - 💡 **Tip for Bangladeshi Students:** ...
 
 ---
 
 ## 📚 Available Programs (${bgText} at ${lvlText})
-(List subjects/fields available)
+(List top universities in ${country.name} that ACTUALLY offer ${bgText} programs for ${lvlText} level)
 
 ## 🗣 Language of Instruction
-(English-taught programs vs local language — specify ratios)
+(English-taught vs local language)
 
 ## 💼 Part-Time Jobs for International Students
 - Legal working hours per week: ...
@@ -755,20 +756,18 @@ For EACH scholarship, use this format:
 (Scholarship amount + part-time income − living expenses = monthly savings/deficit?)
 
 ## ✅ Pros of Studying in ${country.name}
-(Specific, honest advantages for Bangladeshi students)
+(Specific advantages for Bangladeshi students)
 
 ## ⚠️ Cons & Challenges
-(Visa rejection rates, language difficulty, degree recognition, cultural challenges, blocked money requirements if any)
+(Visa rejection rates, language difficulty, degree recognition, blocked money requirements if any)
 
 ## 🔗 All Important Links
 | Resource | Link |
 |----------|------|
 | Bangladesh Embassy | ... |
 | Student Visa Portal | ... |
-| Scholarship Official | ... |
-| Student Community/Forum | ... |
 
-Use Google Search to find the most current information. Include actual URLs wherever possible.`;
+REMEMBER: Write ENTIRELY in ${language}. Use Google Search extensively to verify ALL details (Level, Background, Deadlines, Quotas) before generating the response.`;
   }, [language]);
 
   // ── Fetch scholarship ──────────────────────────────────────────────────────
@@ -811,18 +810,18 @@ Use Google Search to find the most current information. Include actual URLs wher
 
     const prompt = `You are an expert international scholarship and study abroad consultant for Bangladeshi students.
 
-Answer this question comprehensively with verified, current information:
+Answer this question comprehensively using the Google Search tool to ensure verified, current information:
 
 "${q}"
 
 ⚠️ Rules:
 - Write entirely in ${language}
+- ALWAYS use Google Search to verify the latest facts before answering.
 - Include REAL, working URLs for all scholarships and portals mentioned
 - Include Bangladesh-specific quota/seat info where available
 - Mention SSC/HSC GPA (out of 5.0) and CGPA (out of 4.0) requirements
 - Format with clear headers and bullet points
-- Include official deadlines and application portals
-- Use Google Search to verify current information
+- Include official deadlines (current year) and application portals
 
 Format response with emojis and clear sections. Always end with a "🔗 Useful Links" section listing all official URLs mentioned.`;
 
@@ -1055,7 +1054,6 @@ Format response with emojis and clear sections. Always end with a "🔗 Useful L
               </div>
 
               {loading ? (
-                // ✅ FIX: Added exact subtitle based on screenshot request
                 <div className="text-center py-10">
                   <div className="inline-block text-5xl animate-spin mb-5">🌍</div>
                   <h3 className="text-[#d4a843] font-bold text-lg mb-2">AI is analyzing verified data...</h3>
