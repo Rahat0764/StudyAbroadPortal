@@ -11,7 +11,7 @@ const MAX_RPM = 15;
 
 setInterval(() => rateLimitMap.clear(), 60_000);
 
-// ── Confirmed Gemini model IDs (verified screenshot Apr 2025) ─────────────────
+// ── Confirmed Gemini model IDs ───────────────────────────────────────────────
 const GEMINI_MODELS = [
   { id: "gemini-2.5-flash",              rpm: 5  },
   { id: "gemini-2.5-flash-lite",         rpm: 10 },
@@ -32,18 +32,23 @@ const esc = (s) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-function tgSend(botToken, chatId, html) {
+// ✅ FIX: Added async/await so Vercel doesn't kill the background process
+async function tgSend(botToken, chatId, html) {
   if (!botToken || !chatId) return;
-  fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: html,
-      parse_mode: "HTML",
-      disable_web_page_preview: false,
-    }),
-  }).catch(() => {});
+  try {
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: html,
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+      }),
+    });
+  } catch (error) {
+    console.error("Telegram send failed:", error);
+  }
 }
 
 export default async function handler(req, res) {
@@ -129,7 +134,6 @@ export default async function handler(req, res) {
       for (const model of GEMINI_MODELS) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${validKeys[k]}`;
         const ctrl = new AbortController();
-        // 28s — enough for Gemini+GoogleSearch; shorter = faster fail on bad models
         const timer = setTimeout(() => ctrl.abort(), 28_000);
 
         try {
@@ -157,7 +161,6 @@ export default async function handler(req, res) {
             }
             attempts.push({ key: k + 1, model: model.id, status: "⚠️ empty response", detail: "" });
           } else {
-            // Parse error quickly — quota hits return 429 fast, no need to wait
             const errBody = await r.json().catch(() => ({}));
             const errMsg  = errBody?.error?.message || `HTTP ${r.status}`;
             const isQuota = r.status === 429 || /quota|exhausted|rate.?limit/i.test(errMsg);
@@ -167,7 +170,6 @@ export default async function handler(req, res) {
               status: isQuota ? "⏭ quota/rate-limit" : `❌ HTTP ${r.status}`,
               detail: errMsg.slice(0, 120),
             });
-            // Quota hit → skip immediately (no sleep needed, response is instant)
           }
         } catch (err) {
           clearTimeout(timer);
@@ -188,47 +190,41 @@ export default async function handler(req, res) {
     const attemptLines = attempts
       .map(
         (a) =>
-          `  ${a.status} — Key#${a.key} | <code>${esc(a.model)}</code>${
-            a.detail ? ` → ${esc(a.detail)}` : ""
+          `${a.status} — Key#${a.key} | <code>${esc(a.model)}</code>${
+            a.detail ? `\n    └ <i>${esc(a.detail)}</i>` : ""
           }`
       )
       .join("\n");
 
     const responsePreview = finalText
-      ? esc(finalText.slice(0, 2500)) + (finalText.length > 2500 ? "\n…" : "")
+      ? esc(finalText.slice(0, 1500)) + (finalText.length > 1500 ? "\n[... truncated]" : "")
       : "❌ No result generated.";
 
     const tgMsg = [
-      `🔍 <b>BideshPro — New Search</b>`,
+      `🔍 <b>BideshPro — New AI Query</b>`,
       ``,
       `👤 <b>IP:</b> <code>${esc(ip)}</code>`,
-      `🏙 <b>City:</b> ${esc(geo.city)}, ${esc(geo.region)}`,
-      `🌍 <b>Country:</b> ${esc(geo.country)} (${esc(geo.countryCode)})`,
-      `🏢 <b>ISP/Org:</b> ${esc(geo.org)}`,
-      `📮 <b>Postal:</b> ${esc(geo.postal)}`,
-      `🕐 <b>Timezone:</b> ${esc(geo.timezone)}`,
-      geo.lat && geo.lon
-        ? `📍 <b>Coords:</b> <code>${geo.lat}, ${geo.lon}</code>`
-        : `📍 <b>Coords:</b> N/A`,
-      mapsUrl ? `🗺 <a href="${mapsUrl}">Open in Google Maps</a>` : null,
+      `🏙 <b>Geo:</b> ${esc(geo.city)}, ${esc(geo.region)}, ${esc(geo.country)} (${esc(geo.countryCode)})`,
+      `🏢 <b>Org:</b> ${esc(geo.org)}`,
+      `🕐 <b>Timezone:</b> ${esc(geo.timezone)} | <b>Postal:</b> ${esc(geo.postal)}`,
+      mapsUrl ? `🗺 <a href="${mapsUrl}">View on Google Maps</a> (${geo.lat}, ${geo.lon})` : `📍 <b>Coords:</b> N/A`,
       ``,
-      `🔎 <b>Query:</b> <code>${esc(safeQuery.slice(0, 200))}</code>`,
-      `⏱ <b>Total time:</b> ${elapsed}s`,
+      `🔎 <b>Search/Cache Key:</b> <code>${esc(safeQuery)}</code>`,
+      `⏱ <b>Total response time:</b> ${elapsed}s`,
       ``,
       `🤖 <b>Model Attempts (${attempts.length} total):</b>`,
       attemptLines || "  (none recorded)",
-      finalText
-        ? `\n✅ <b>Used:</b> Key#${usedKeyIdx} | <code>${esc(usedModel)}</code>`
-        : `\n❌ <b>Result: All models failed</b>`,
       ``,
-      `📝 <b>AI Response (preview):</b>`,
+      finalText
+        ? `✅ <b>FINAL SUCCESS:</b> Key#${usedKeyIdx} | <code>${esc(usedModel)}</code>`
+        : `❌ <b>RESULT: All keys and models failed</b>`,
+      ``,
+      `📝 <b>AI Response Preview:</b>`,
       `<pre>${responsePreview}</pre>`,
-    ]
-      .filter((l) => l !== null)
-      .join("\n");
+    ].filter((l) => l !== null).join("\n");
 
-    // Fire & forget — never block the API response for Telegram
-    tgSend(botToken, chatId, tgMsg);
+    // ✅ FIX: Await tgSend here so Vercel doesn't kill the execution
+    await tgSend(botToken, chatId, tgMsg);
 
     if (!finalText) {
       const last = attempts[attempts.length - 1];
