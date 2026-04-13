@@ -9,9 +9,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST")
     return res.status(405).json({ error: "Method not allowed" });
 
-  // ── 1. Origin Protection (Prevent API Abuse from other sites) ──
   const origin = req.headers.origin || req.headers.referer || "";
-  // আপনি চাইলে এখানে আপনার ভের্সেল ডোমেইন বসাতে পারেন, আপাতত বেসিক প্রোটেকশন রাখা হলো
   if (!origin && process.env.NODE_ENV === "production") {
     // console.warn("Direct API access blocked"); // Optional
   }
@@ -46,12 +44,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Invalid prompt provided" });
   }
 
-  // ── 2. Sanitize/Truncate Logging Payloads (Fix High 7 & 8) ──
   const safeCity = String(locationData?.city || "Unknown").substring(0, 50);
-  const safeCountry = String(locationData?.country || "Unknown").substring(
-    0,
-    50
-  );
+  const safeCountry = String(locationData?.country || "Unknown").substring(0, 50);
   const safeOrg = String(locationData?.org || "Unknown").substring(0, 100);
   const safeQuery = String(searchQuery || "Unknown").substring(0, 200);
 
@@ -115,8 +109,7 @@ export default async function handler(req, res) {
             break;
           } else {
             const errData = await geminiRes.json().catch(() => ({}));
-            lastErrorMsg =
-              errData?.error?.message || `HTTP ${geminiRes.status}`;
+            lastErrorMsg = errData?.error?.message || `HTTP ${geminiRes.status}`;
             continue;
           }
         } catch (error) {
@@ -134,9 +127,10 @@ export default async function handler(req, res) {
           error: "All API models depleted. Last error: " + lastErrorMsg,
         });
 
+    // টেলিগ্রামের fetch এর আগে await যুক্ত করা হয়েছে যেন Vercel একে kill না করে
     if (botToken && chatId) {
       const msg = `🚨 <b>Search Alert!</b>\n👤 <b>IP:</b> ${ip}\n🌍 <b>Loc:</b> ${safeCity}, ${safeCountry}\n🏢 <b>ISP:</b> ${safeOrg}\n🔍 <b>Q:</b> ${safeQuery}\n🤖 <b>API:</b> K#${usedKeyIndex} | ${usedModelName}`;
-      fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -144,7 +138,7 @@ export default async function handler(req, res) {
           text: msg,
           parse_mode: "HTML",
         }),
-      }).catch(() => {});
+      }).catch((err) => console.error("Telegram API Error", err));
     }
 
     return res.status(200).json({ text: finalResultText });
