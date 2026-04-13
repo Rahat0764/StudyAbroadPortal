@@ -291,7 +291,7 @@ function MarkdownRenderer({ text }) {
 // ── Skeleton Loader ────────────────────────────────────────────────────────────
 function SkeletonLoader() {
   return (
-    <div className="animate-pulse space-y-5 pt-4">
+    <div className="animate-pulse space-y-5 pt-4 text-left">
       <div className="h-8 bg-[#141f2e] rounded-lg w-2/3" />
       <div className="space-y-2">
         {[100, 85, 90, 70, 95].map((w, i) => (
@@ -557,8 +557,6 @@ function MainApp() {
   const resultRef = useRef(null);
 
   // ── Persist result in localStorage (survives viewport change + refresh) ────
-  // Using localStorage (not sessionStorage) so result survives tab switches,
-  // mobile ↔ desktop viewport changes, and soft refreshes.
   const PERSIST_KEY = "bideshpro_last_result";
 
   // ── Session restore ────────────────────────────────────────────────────────
@@ -1057,9 +1055,13 @@ Format response with emojis and clear sections. Always end with a "🔗 Useful L
               </div>
 
               {loading ? (
+                // ✅ FIX: Added exact subtitle based on screenshot request
                 <div className="text-center py-10">
                   <div className="inline-block text-5xl animate-spin mb-5">🌍</div>
-                  <h3 className="text-[#d4a843] font-bold text-lg mb-2">AI is searching for verified data...</h3>
+                  <h3 className="text-[#d4a843] font-bold text-lg mb-2">AI is analyzing verified data...</h3>
+                  <p className="text-[#7a94ad] text-sm mb-6 max-w-[320px] mx-auto leading-relaxed">
+                    Gathering scholarships, part-time jobs, and living costs for {level === 'all' ? 'all levels' : `${level} level`} in {selectedCountry?.name}.
+                  </p>
                   <SkeletonLoader />
                 </div>
               ) : error ? (
