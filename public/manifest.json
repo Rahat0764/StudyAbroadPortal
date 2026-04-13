@@ -1,15 +1,15 @@
 {
-  "short_name": "BideshPro",
-  "name": "BideshPro - Study Abroad",
+  "name": "BideshPro",
+  "short_name": "Bidesh",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#03050a",
+  "theme_color": "#d4a843",
   "icons": [
     {
-      "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
-  ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#03050a",
-  "background_color": "#03050a"
+  ]
 }
