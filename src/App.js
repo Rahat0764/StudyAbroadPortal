@@ -682,92 +682,76 @@ function MainApp() {
   }, [debouncedSearch]);
 
 
-  // ✅ FIX: Universal dynamic search prompt without hardcoding specific country rules
+  // ✅ FIX: No Broken Links + Strict Rules (Safe Length)
   const buildPrompt = useCallback((country, lvl, bg) => {
     const lvlText = lvl === "all" ? "All Levels (Bachelor, Master's & PhD)" : lvl.charAt(0).toUpperCase() + lvl.slice(1);
     const bgText  = bg  === "all" ? "All Backgrounds (Science, Arts, Commerce)" : bg.charAt(0).toUpperCase() + bg.slice(1);
 
-    return `You are a highly experienced international scholarship consultant specializing in helping Bangladeshi students study abroad.
+    return `You are a highly experienced international scholarship consultant for Bangladeshi students.
 
-CRITICAL DIRECTIVE: YOU MUST USE GOOGLE SEARCH to find the most current, real-time, and authentic data. Do NOT rely on pre-trained assumptions or hallucinate generic facts. You must conduct active searches for the constraints below.
+CRITICAL DIRECTIVE: USE GOOGLE SEARCH to find current, authentic data.
 
-🎯 Target Country: ${country.name}
-🎓 Target Degree Level: ${lvlText}
-📚 Target Background: ${bgText}
-🌐 Output Language: ${language}
+🎯 Country: ${country.name}
+🎓 Degree: ${lvlText}
+📚 Background: ${bgText}
+🌐 Language: ${language}
 
-⚠️ STRICT SEARCH & FILTERING RULES (DO NOT VIOLATE):
-1. EXACT BACKGROUND MATCH: Use Google Search to verify that the universities you suggest ACTUALLY offer "${bgText}" programs. 
-   - Example Violation: Do NOT suggest specialized Engineering/Tech universities (like KFUPM, MIT, KAIST) if the background is Arts or Commerce.
-2. EXACT LEVEL MATCH: Verify that the scholarship and university are open for "${lvlText}" to international students. If a university only takes Master's/PhD, do NOT include it for Bachelor.
-3. LATEST QUOTAS & UPDATES: Search specifically for "Bangladeshi student quota ${country.name} scholarship recent updates". If there is a specific quota (e.g., 500 seats), YOU MUST INCLUDE IT. If there is no specific quota, state that it is open globally.
-4. ACCURATE DEADLINES: Search for the exact application deadlines for the CURRENT YEAR. 
-   - If not published yet, provide last year's exact dates and explicitly mention "(গত বছরের তথ্য অনুযায়ী / Based on last year's cycle)". Do not write vague things like "Varies".
-5. GENUINE LINKS: Every official site and application portal link MUST be a real, working URL found via search. Do not fabricate URLs.
+⚠️ STRICT RULES (DO NOT VIOLATE):
+1. EXACT MATCH: Ensure universities ACTUALLY offer "${bgText}" for "${lvlText}". Do not suggest purely Tech/Engg universities if background is Arts/Commerce.
+2. LATEST QUOTAS: Search for "Bangladeshi student quota ${country.name} scholarship recent updates". State if there is a specific quota (e.g. 500) or if it's globally open.
+3. CURRENT DEADLINES: Give exact dates for the CURRENT YEAR. If unpublished, use last year's dates and note "(Based on last year's cycle)". Do not write "Varies".
+4. NO BROKEN LINKS (CRITICAL): Do NOT guess or hallucinate deep URLs. If you cannot verify the exact application portal link via search, provide the MAIN homepage of the university (e.g., https://www.harvard.edu) instead of making up a broken link.
 
 ═══════════════════════════════════
-📋 REQUIRED SECTIONS (use these exact headers):
+📋 FORMAT (Use these exact headers):
 ═══════════════════════════════════
 
 ## 🎓 Scholarships in ${country.name}
-(List 2-3 highly relevant scholarships matching the STRICT criteria)
+(List 2-3 highly relevant scholarships)
 
 ### 🏆 [Official Scholarship Name]
-- 💰 **Coverage:** (tuition + stipend amount in local currency AND USD + accommodation + airfare + insurance)
-- 📅 **Deadline:** (EXACT dates from your search for this year, or last year if unpublished)
-- 🗓 **Intake:** (semester/month)
-- ⏳ **Duration:** (by level)
-- ✅ **Eligibility:**
-  - Age limit: ...
-  - SSC/HSC GPA (out of 5.0) or Bachelor CGPA (out of 4.0): ...
-  - Backgrounds accepted: (Must explicitly confirm ${bgText})
-- 📄 **Required Documents:** (complete list)
-- 🗣 **Language:** (English/local + IELTS/TOEFL score requirement)
-- 🇧🇩 **Bangladesh Quota:** (Exact number of seats based on latest news via Google Search, if any)
-- 🔗 **Official Site:** [Name](REAL_URL)
-- 📝 **Apply Here:** [Portal](REAL_URL)
-- 💡 **Tip for Bangladeshi Students:** ...
+- 💰 **Coverage:** (Tuition, stipend in local currency & USD, etc.)
+- 📅 **Deadline:** (Exact dates)
+- 🗓 **Intake:** (Semester/month)
+- ⏳ **Duration:** (Years)
+- ✅ **Eligibility:** Age limit, GPA (out of 5.0) / CGPA (out of 4.0), accepted backgrounds.
+- 📄 **Required Documents:** (List)
+- 🗣 **Language:** (IELTS/TOEFL requirements)
+- 🇧🇩 **Bangladesh Quota:** (Exact seats or "Global")
+- 🔗 **Official Site:** [Name](REAL_URL_ONLY)
+- 📝 **Apply Here:** [Portal](REAL_URL_ONLY)
 
 ---
 
 ## 📚 Available Programs (${bgText} at ${lvlText})
-(List top universities in ${country.name} that ACTUALLY offer ${bgText} programs for ${lvlText} level)
+(Top universities offering ${bgText})
 
 ## 🗣 Language of Instruction
-(English-taught vs local language)
+(English vs local language)
 
-## 💼 Part-Time Jobs for International Students
-- Legal working hours per week: ...
-- Average hourly wage: ... (local currency + BDT equivalent)
+## 💼 Part-Time Jobs
+- Legal hours/week: ...
+- Avg hourly wage: ... (Local + BDT)
 - Monthly earning potential: ...
-- Popular job sectors for students: ...
 
 ## 🏠 Monthly Living Expenses Breakdown
-| Category | Estimated Cost (Local) | ≈ BDT |
-|----------|----------------------|-------|
+| Category | Cost (Local) | ≈ BDT |
+|----------|--------------|-------|
 | Accommodation | ... | ... |
-| Food & Groceries | ... | ... |
+| Food | ... | ... |
 | Transport | ... | ... |
-| Internet + Phone | ... | ... |
-| Miscellaneous | ... | ... |
-| **Total** | **...** | **...** |
+| Total | ... | ... |
 
 ## 📊 Financial Feasibility
-(Scholarship amount + part-time income − living expenses = monthly savings/deficit?)
+(Scholarship + part-time − living costs = ?)
 
 ## ✅ Pros of Studying in ${country.name}
-(Specific advantages for Bangladeshi students)
-
 ## ⚠️ Cons & Challenges
-(Visa rejection rates, language difficulty, degree recognition, blocked money requirements if any)
-
 ## 🔗 All Important Links
-| Resource | Link |
-|----------|------|
-| Bangladesh Embassy | ... |
-| Student Visa Portal | ... |
-
-REMEMBER: Write ENTIRELY in ${language}. Use Google Search extensively to verify ALL details (Level, Background, Deadlines, Quotas) before generating the response.`;
+| Resource | Link (REAL_URL_ONLY) |
+|----------|----------------------|
+| Embassy | ... |
+| Visa Portal | ... |`;
   }, [language]);
 
   // ── Fetch scholarship ──────────────────────────────────────────────────────
@@ -791,7 +775,7 @@ REMEMBER: Write ENTIRELY in ${language}. Use Google Search extensively to verify
     } catch (err) {
       setError(
         err.message.includes("not found") || err.message.includes("Unexpected token")
-          ? "⚠️ Backend API not connected. Deploy to Vercel and set environment variables."
+          ? "⚠️ Backend API error: Please try again."
           : err.message
       );
     } finally { setLoading(false); }
@@ -810,20 +794,20 @@ REMEMBER: Write ENTIRELY in ${language}. Use Google Search extensively to verify
 
     const prompt = `You are an expert international scholarship and study abroad consultant for Bangladeshi students.
 
-Answer this question comprehensively using the Google Search tool to ensure verified, current information:
+Answer comprehensively using Google Search to ensure verified, current information:
 
 "${q}"
 
 ⚠️ Rules:
 - Write entirely in ${language}
-- ALWAYS use Google Search to verify the latest facts before answering.
-- Include REAL, working URLs for all scholarships and portals mentioned
-- Include Bangladesh-specific quota/seat info where available
-- Mention SSC/HSC GPA (out of 5.0) and CGPA (out of 4.0) requirements
-- Format with clear headers and bullet points
-- Include official deadlines (current year) and application portals
+- ALWAYS use Google Search to verify facts.
+- Include REAL, working URLs ONLY. Do not hallucinate links. If unsure, provide the main website homepage.
+- Include Bangladesh-specific quota/seat info where available.
+- Mention SSC/HSC GPA (out of 5.0) and CGPA (out of 4.0).
+- Format with clear headers and bullet points.
+- Include official deadlines (current year).
 
-Format response with emojis and clear sections. Always end with a "🔗 Useful Links" section listing all official URLs mentioned.`;
+Format response with emojis and clear sections. End with a "🔗 Useful Links" section (REAL URLs ONLY).`;
 
     try {
       const text = await ApiService.fetch("/api/search", {
