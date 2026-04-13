@@ -32,7 +32,6 @@ const esc = (s) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-// ✅ FIX: Added async/await so Vercel doesn't kill the background process
 async function tgSend(botToken, chatId, html) {
   if (!botToken || !chatId) return;
   try {
@@ -52,47 +51,19 @@ async function tgSend(botToken, chatId, html) {
 }
 
 export default async function handler(req, res) {
-  // ── CORS ───────────────────────────────────────────────────────────────────
-  const origin = req.headers.origin || "";
-  const isAllowed =
-    !origin ||
-    ALLOWED_ORIGINS.some((o) => origin.includes(o)) ||
-    (process.env.NEXT_PUBLIC_SITE_URL && origin === process.env.NEXT_PUBLIC_SITE_URL);
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId   = process.env.TELEGRAM_CHAT_ID;
+  const startMs  = Date.now();
 
-  if (!isAllowed && process.env.NODE_ENV === "production")
-    return res.status(403).json({ error: "Forbidden origin" });
-
-  res.setHeader("Access-Control-Allow-Origin", origin || "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
-
-  // ── Guards ─────────────────────────────────────────────────────────────────
-  if (activeRequests >= MAX_CONCURRENT)
-    return res.status(503).json({ error: "Server too busy. Try again shortly." });
-  if (JSON.stringify(req.body || {}).length > 10_000)
-    return res.status(413).json({ error: "Payload too large" });
-
-  // ── Real IP ────────────────────────────────────────────────────────────────
+  // ── Real IP & Geo (Parsed early for global logging) ────────────────────────
   const ip =
     req.headers["x-real-ip"] ||
     req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
     req.socket?.remoteAddress ||
     "unknown";
 
-  // ── Per-IP rate limit ──────────────────────────────────────────────────────
-  const reqCount = rateLimitMap.get(ip) || 0;
-  if (reqCount >= MAX_RPM)
-    return res.status(429).json({ error: "Too many requests. Please wait a minute." });
-  rateLimitMap.set(ip, reqCount + 1);
-
-  // ── Validate body ──────────────────────────────────────────────────────────
   const { prompt, locationData, searchQuery } = req.body || {};
-  if (!prompt || typeof prompt !== "string" || !prompt.trim() || prompt.length > 4000)
-    return res.status(400).json({ error: "Invalid prompt" });
-
-  // ── Full geo ───────────────────────────────────────────────────────────────
+  
   const geo = {
     city:        String(locationData?.city        || "Unknown").slice(0, 60),
     region:      String(locationData?.region      || "Unknown").slice(0, 60),
@@ -105,26 +76,70 @@ export default async function handler(req, res) {
     lon:         parseFloat(locationData?.longitude) || null,
   };
   const safeQuery = String(searchQuery || "Unknown").slice(0, 400);
+
+  // Helper to log early errors to Telegram before returning
+  const logAndReturnError = async (statusCode, clientMsg, tgDetail) => {
+    const errorMsg = [
+      `🚨 <b>BideshPro API Error (Early Exit)</b>`,
+      ``,
+      `👤 <b>IP:</b> <code>${esc(ip)}</code>`,
+      `🏙 <b>Geo:</b> ${esc(geo.city)}, ${esc(geo.country)}`,
+      `🔎 <b>Query:</b> <code>${esc(safeQuery)}</code>`,
+      `🛑 <b>Status Code:</b> ${statusCode}`,
+      `⚠️ <b>Reason:</b> ${esc(tgDetail)}`
+    ].join("\n");
+    await tgSend(botToken, chatId, errorMsg);
+    return res.status(statusCode).json({ error: clientMsg });
+  };
+
+  // ── CORS ───────────────────────────────────────────────────────────────────
+  const origin = req.headers.origin || "";
+  const isAllowed =
+    !origin ||
+    ALLOWED_ORIGINS.some((o) => origin.includes(o)) ||
+    (process.env.NEXT_PUBLIC_SITE_URL && origin === process.env.NEXT_PUBLIC_SITE_URL);
+
+  if (!isAllowed && process.env.NODE_ENV === "production")
+    return logAndReturnError(403, "Forbidden origin", `CORS blocked for origin: ${origin}`);
+
+  res.setHeader("Access-Control-Allow-Origin", origin || "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return logAndReturnError(405, "Method not allowed", `Invalid method: ${req.method}`);
+
+  // ── Guards ─────────────────────────────────────────────────────────────────
+  if (activeRequests >= MAX_CONCURRENT)
+    return logAndReturnError(503, "Server too busy. Try again shortly.", "MAX_CONCURRENT reached");
+  
+  if (JSON.stringify(req.body || {}).length > 20_000)
+    return logAndReturnError(413, "Payload too large", "Request body exceeded 20KB");
+
+  // ── Per-IP rate limit ──────────────────────────────────────────────────────
+  const reqCount = rateLimitMap.get(ip) || 0;
+  if (reqCount >= MAX_RPM)
+    return logAndReturnError(429, "Too many requests. Please wait a minute.", `Rate limit hit (${reqCount} reqs)`);
+  rateLimitMap.set(ip, reqCount + 1);
+
+  // ── Validate body (INCREASED LIMIT TO 12000 to fix "Invalid Prompt") ───────
+  if (!prompt || typeof prompt !== "string" || !prompt.trim() || prompt.length > 12000)
+    return logAndReturnError(400, "Invalid prompt", `Prompt validation failed. Length: ${prompt?.length || 0}`);
+
   const mapsUrl = geo.lat && geo.lon
     ? `https://www.google.com/maps?q=${geo.lat},${geo.lon}`
     : null;
 
   // ── Keys ───────────────────────────────────────────────────────────────────
   const apiKeysString = process.env.GEMINI_API_KEYS;
-  if (!apiKeysString) return res.status(500).json({ error: "Server config error" });
+  if (!apiKeysString) return logAndReturnError(500, "Server config error", "GEMINI_API_KEYS missing");
   const validKeys = apiKeysString.split(",").map((k) => k.trim()).filter(Boolean);
-  if (!validKeys.length) return res.status(500).json({ error: "No API keys configured" });
+  if (!validKeys.length) return logAndReturnError(500, "No API keys configured", "GEMINI_API_KEYS array is empty");
 
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId   = process.env.TELEGRAM_CHAT_ID;
-
-  // ── Attempt log (all tries, for Telegram) ─────────────────────────────────
+  // ── Attempt log ────────────────────────────────────────────────────────────
   const attempts = [];
-
   let finalText  = null;
   let usedKeyIdx = -1;
   let usedModel  = "";
-  const startMs  = Date.now();
 
   activeRequests++;
 
@@ -223,7 +238,6 @@ export default async function handler(req, res) {
       `<pre>${responsePreview}</pre>`,
     ].filter((l) => l !== null).join("\n");
 
-    // ✅ FIX: Await tgSend here so Vercel doesn't kill the execution
     await tgSend(botToken, chatId, tgMsg);
 
     if (!finalText) {
@@ -234,6 +248,9 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ text: finalText });
+  } catch (error) {
+    // Catch absolute failures (e.g. Node.js crash)
+    await logAndReturnError(500, "Internal Server Error", error.message);
   } finally {
     activeRequests--;
   }
