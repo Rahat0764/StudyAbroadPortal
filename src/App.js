@@ -1,23 +1,21 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, increment } from "firebase/firestore";
 
-// ── Constants & Config ──────────────────────────────────────────────────
 const VIEWS = { COUNTRIES: "countries", SEARCH: "search", RESULT: "result" };
 const CACHE_LIMIT = 20;
 
 class ErrorBoundary extends React.Component {
   state = { hasError: false };
   static getDerivedStateFromError(error) { return { hasError: true }; }
-  componentDidCatch(error, errorInfo) { console.error("Global Error:", error, errorInfo); }
+  componentDidCatch(error, errorInfo) { console.error("Error:", error, errorInfo); }
   render() {
     if (this.state.hasError) return <div className="p-10 text-center text-red-500 bg-[#070b12] min-h-screen"><h2>Something went wrong. Please refresh the page.</h2></div>;
     return this.props.children;
   }
 }
 
-// ── Firebase Setup ────────────────────────────────────────────────────────
 let app, auth, db, appId;
 try {
   const firebaseConfig = typeof __firebase_config !== "undefined" ? JSON.parse(__firebase_config) : null;
@@ -27,9 +25,8 @@ try {
     auth = getAuth(app);
     db = getFirestore(app);
   }
-} catch (error) { console.warn("Firebase config issue, analytics disabled."); }
+} catch (error) {}
 
-// ── Custom Hooks ──────────────────────────────────────────────────────────
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
   useEffect(() => {
@@ -54,7 +51,6 @@ function useOfflineStatus() {
   return isOffline;
 }
 
-// ── Utility Services ──────────────────────────────────────────────────────
 const CacheService = {
   cache: new Map(),
   set(key, value) {
@@ -123,6 +119,7 @@ function MarkdownRenderer({ text }) {
 
   const parseInline = (str) => {
     let safeHtml = escapeHTML(str);
+    safeHtml = safeHtml.replace(/&lt;br\s*\/?&gt;/gi, '<br />'); // Fix for <br> tags
     safeHtml = safeHtml.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
     safeHtml = safeHtml.replace(/\*(.*?)\*/g, '<em class="text-[#22c7b8]">$1</em>');
     safeHtml = safeHtml.replace(/`(.*?)`/g, '<code class="bg-[#1a2a3a] text-[#4a9eff] px-1.5 py-0.5 rounded text-sm">$1</code>');
@@ -158,16 +155,15 @@ function MarkdownRenderer({ text }) {
     } else { pushList(); }
 
     if (!trimmed) elements.push(<div key={`br-${index}`} className="h-3" />);
-    else if (trimmed.startsWith("### ")) elements.push(<h3 key={`h3-${index}`} className="text-xl font-bold text-[#d4a843] mt-6 mb-3 border-b border-[#141f2e] pb-2">{parseInline(trimmed.slice(4))}</h3>);
-    else if (trimmed.startsWith("## ")) elements.push(<h2 key={`h2-${index}`} className="text-2xl font-extrabold text-white mt-8 mb-4 bg-gradient-to-r from-[#f0c96622] to-transparent p-3 rounded-lg border-l-4 border-[#d4a843]">{parseInline(trimmed.slice(3))}</h2>);
-    else if (trimmed.startsWith("# ")) elements.push(<h1 key={`h1-${index}`} className="text-3xl font-extrabold text-[#d4a843] mt-4 mb-6">{parseInline(trimmed.slice(2))}</h1>);
+    else if (trimmed.startsWith("### ")) elements.push(<h3 key={`h3-${index}`} className="text-xl font-bold text-[#d4a843] mt-6 mb-3 border-b border-[#141f2e] pb-2" dangerouslySetInnerHTML={{ __html: parseInline(trimmed.slice(4)) }} />);
+    else if (trimmed.startsWith("## ")) elements.push(<h2 key={`h2-${index}`} className="text-2xl font-extrabold text-white mt-8 mb-4 bg-gradient-to-r from-[#f0c96622] to-transparent p-3 rounded-lg border-l-4 border-[#d4a843]" dangerouslySetInnerHTML={{ __html: parseInline(trimmed.slice(3)) }} />);
+    else if (trimmed.startsWith("# ")) elements.push(<h1 key={`h1-${index}`} className="text-3xl font-extrabold text-[#d4a843] mt-4 mb-6" dangerouslySetInnerHTML={{ __html: parseInline(trimmed.slice(2)) }} />);
     else elements.push(<p key={`p-${index}`} className="text-[#7a94ad] leading-relaxed mb-3" dangerouslySetInnerHTML={{ __html: parseInline(trimmed) }} />);
   });
   pushList();
   return <div className="markdown-body font-sans">{elements}</div>;
 }
 
-// ── Components ────────────────────────────────────────────────────────────
 const COUNTRIES = [
   { name: "United States", flag: "🇺🇸", hint: "Fulbright, Assistantships" },
   { name: "United Kingdom", flag: "🇬🇧", hint: "Chevening, Commonwealth" },
@@ -194,10 +190,10 @@ function SkeletonLoader() {
   );
 }
 
-// ── Main App ──────────────────────────────────────────────────────────────
+// Main
 function MainApp() {
   const [view, setView] = useState(VIEWS.COUNTRIES);
-  const [language, setLanguage] = useState("English"); // AI Language State
+  const [language, setLanguage] = useState("English");
   const [userAuth, setUserAuth] = useState(null);
   const [userInfo, setUserInfo] = useState(null);
   const isOffline = useOfflineStatus();
@@ -218,17 +214,33 @@ function MainApp() {
   const [searchHistory, setSearchHistory] = useState([]);
   const [analyticsData, setAnalyticsData] = useState([]);
 
+  // Restore State
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("scholarpath_history");
-      if (saved) setSearchHistory(JSON.parse(saved));
-    } catch (e) { console.warn("Failed to load history"); }
+      const savedSession = sessionStorage.getItem("bideshpro_state");
+      if (savedSession) {
+        const data = JSON.parse(savedSession);
+        if (data.view) setView(data.view);
+        if (data.selectedCountry) setSelectedCountry(data.selectedCountry);
+        if (data.resultText) setResultText(data.resultText);
+        if (data.level) setLevel(data.level);
+        if (data.background) setBackground(data.background);
+        if (data.language) setLanguage(data.language);
+      }
+      const savedHistory = localStorage.getItem("bideshpro_history");
+      if (savedHistory) setSearchHistory(JSON.parse(savedHistory));
+    } catch (e) {}
   }, []);
+
+  // Save State
+  useEffect(() => {
+    sessionStorage.setItem("bideshpro_state", JSON.stringify({ view, selectedCountry, resultText, level, background, language }));
+  }, [view, selectedCountry, resultText, level, background, language]);
 
   const saveToHistory = (query) => {
     setSearchHistory((prev) => {
       const updated = [query, ...prev.filter((q) => q !== query)].slice(0, 5);
-      localStorage.setItem("scholarpath_history", JSON.stringify(updated));
+      localStorage.setItem("bideshpro_history", JSON.stringify(updated));
       return updated;
     });
   };
@@ -239,7 +251,7 @@ function MainApp() {
       try {
         if (typeof __initial_auth_token !== "undefined" && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
         else await signInAnonymously(auth);
-      } catch (err) { console.warn("Auth warning:", err); }
+      } catch (err) {}
     };
     initAuth();
     return onAuthStateChanged(auth, setUserAuth);
@@ -266,7 +278,7 @@ function MainApp() {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) await updateDoc(docRef, { count: increment(1) });
         else await setDoc(docRef, { count: 1 });
-      } catch (err) { console.warn("Analytics error suppressed"); }
+      } catch (err) {}
     }, [userAuth]
   );
 
@@ -291,19 +303,22 @@ function MainApp() {
 
       const prompt = `Act as an expert international scholarship and study abroad consultant for Bangladeshi students. 
       Provide comprehensive, verified, and highly practical information about studying in ${country.name}.
-      Target Level: ${lvl} | Background: ${bg}
+      
+      Target Level: ${lvl}
+      Background: ${bg}
 
-      You MUST include the following specific sections in your response:
-      1. Available Scholarships (with official or verified names).
-      2. Part-Time Job Opportunities (Availability for international students, average hourly/monthly wage, and legal working hours).
-      3. Living Expenses (Provide a realistic monthly breakdown).
-      4. Financial Feasibility & Savings (Calculate: Scholarship Amount + Part-time earnings - Living Expenses = Is savings possible?).
-      5. Pros and Cons of studying in ${country.name}.
+      CRITICAL RULE 1: If Target Level is 'bachelor', DO NOT show any Masters or PhD scholarships (like KAUST/KFUPM). Strictly show ${lvl} level info.
+      CRITICAL RULE 2: Provide EXACT, working, and verified official links for application portals. Do not use broken or fake links.
+      CRITICAL RULE 3: The ENTIRE output MUST be strictly in ${language} language.
 
-      IMPORTANT RULES:
-      - Use Google Search to find exact, accurate, and up-to-date information.
-      - The ENTIRE output MUST be strictly in ${language} language.
-      - Format nicely using Markdown with proper headings, bullet points, and bold text.`;
+      You MUST include the following specific sections in your Markdown response:
+      1. Available Programs: What subjects/programs can a ${bg} student study at the ${lvl} level in ${country.name}?
+      2. Medium of Instruction: Availability of English-taught programs vs local language.
+      3. Verified Scholarships: Name strictly ${lvl}-applicable scholarships with official links.
+      4. Part-Time Job Opportunities: Availability for international students, average hourly/monthly wage, and legal working hours.
+      5. Living Expenses: Realistic monthly breakdown (Accommodation, Food, Transport). Mention if accommodation is free via scholarship.
+      6. Financial Feasibility & Savings: Calculation (Scholarship Amount + Part-time earnings - Living Expenses = Is savings possible?).
+      7. Pros and Cons: Honest advantages and disadvantages of studying in ${country.name}.`;
 
       try {
         const text = await ApiService.fetchWithRetry("/api/search", {
@@ -360,14 +375,14 @@ function MainApp() {
               <h1 className="text-xl font-bold leading-tight font-serif tracking-wide">
                 <span className="text-white">Bidesh</span><span className="text-[#d4a843]">Pro</span>
               </h1>
-              <p className="text-[10px] text-[#7a94ad] tracking-widest font-semibold uppercase mt-0.5">
-                BETA • Developed by <a href="https://www.linkedin.com/in/RahatAhmedX" target="_blank" rel="noopener noreferrer" className="text-[#4a9eff] hover:underline">Rahat</a>
+              <p className="text-[10px] text-[#7a94ad] tracking-widest font-semibold uppercase mt-0.5 flex items-center">
+                <span className="bg-[#d4a843] text-black px-1.5 py-0.5 rounded text-[8px] font-bold mr-1.5">BETA</span>
+                Developed by <a href="https://www.linkedin.com/in/RahatAhmedX" target="_blank" rel="noopener noreferrer" className="text-[#4a9eff] hover:underline ml-1">Rahat</a>
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-2 bg-[#0b1119] p-1.5 rounded-lg border border-[#141f2e]">
-            {/* Language Switcher */}
             <div className="flex bg-[#141f2e] rounded-md p-0.5 mr-1 border border-[#1e3045]">
               <button onClick={() => setLanguage('English')} className={`px-2 py-1 text-[10px] font-bold rounded transition-colors ${language === 'English' ? 'bg-[#d4a843] text-black shadow' : 'text-[#7a94ad] hover:text-white'}`}>EN</button>
               <button onClick={() => setLanguage('Bengali')} className={`px-2 py-1 text-[10px] font-bold rounded transition-colors ${language === 'Bengali' ? 'bg-[#d4a843] text-black shadow' : 'text-[#7a94ad] hover:text-white'}`}>BN</button>
@@ -392,22 +407,9 @@ function MainApp() {
                   <span className="text-[#d4a843]">for Bangladeshis</span>
                 </h2>
                 <p className="text-[#7a94ad] max-w-2xl text-base md:text-lg">
-                  AI will search verified info for you...
+                  AI ইন্টারনেট সার্চ করে প্রোগ্রাম, পার্টটাইম জব, এবং লিভিং এক্সপেন্সের ভেরিফায়েড তথ্য বের করবে।
                 </p>
               </div>
-              {analyticsData.length > 0 && (
-                <div className="bg-[#070b12] border border-[#141f2e] rounded-2xl p-4 w-full md:w-64 flex-shrink-0 shadow-lg">
-                  <h3 className="text-[#d4a843] font-bold text-sm mb-3">🔥 Trending Searches</h3>
-                  <div className="space-y-2">
-                    {analyticsData.slice(0, 5).map((item, idx) => (
-                      <div key={item.id} className="flex justify-between items-center bg-[#0b1119] p-2 rounded-lg border border-[#141f2e]">
-                        <span className="text-xs text-white"><span className="text-[#7a94ad] mr-1">#{idx + 1}</span> {item.id}</span>
-                        <span className="text-xs bg-[#141f2e] text-[#4a9eff] px-2 py-0.5 rounded-full font-bold">{item.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="bg-[#070b12] border border-[#141f2e] rounded-2xl p-5 mb-8 flex flex-col md:flex-row gap-6 shadow-lg">
@@ -475,7 +477,14 @@ function MainApp() {
                 )}
               </div>
 
-              {loading ? ( <SkeletonLoader /> ) : error ? (
+              {loading ? ( 
+                <div className="text-center py-10">
+                   <div className="inline-block animate-spin text-5xl mb-6">🌍</div>
+                   <h3 className="text-[#d4a843] font-bold text-xl mb-2">AI is analyzing verified data...</h3>
+                   <p className="text-[#7a94ad] text-sm mb-8">Gathering scholarships, part-time jobs, and living costs for {level} level in {selectedCountry?.name}.</p>
+                   <SkeletonLoader />
+                </div>
+              ) : error ? (
                 <div className="bg-[#e05555]/10 border border-[#e05555]/30 rounded-xl p-6 text-[#e05555]">
                   <h4 className="font-bold mb-1">Error Fetching Data</h4>
                   <p className="text-sm mt-1">{error}</p>
