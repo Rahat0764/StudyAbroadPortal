@@ -1,6 +1,6 @@
 {
   "name": "BideshPro",
-  "short_name": "Bidesh",
+  "short_name": "BideshPro",
   "description": "AI-powered scholarship finder for Bangladeshi students",
   "start_url": "/",
   "display": "standalone",
