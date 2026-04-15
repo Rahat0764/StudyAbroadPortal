@@ -78,6 +78,18 @@ app.post("/api/search", async (req, res) => {
   const { prompt, locationData, searchQuery } = req.body || {};
   const safeQuery = String(searchQuery || "Unknown").slice(0, 400);
 
+  // Geo Location Setup for Telegram
+  const geo = {
+    city:        String(locationData?.city        || "Unknown").slice(0, 60),
+    region:      String(locationData?.region      || "Unknown").slice(0, 60),
+    country:     String(locationData?.country     || "Unknown").slice(0, 60),
+    countryCode: String(locationData?.countryCode || "??").slice(0, 4),
+    org:         String(locationData?.org         || "Unknown").slice(0, 120),
+    lat:         parseFloat(locationData?.latitude)  || null,
+    lon:         parseFloat(locationData?.longitude) || null,
+  };
+  const mapsUrl = geo.lat && geo.lon ? `https://www.google.com/maps?q=${geo.lat},${geo.lon}` : null;
+
   if (!prompt || prompt.length > 12000) return res.status(400).json({ error: "Invalid prompt" });
   if (activeRequests >= MAX_CONCURRENT) return res.status(503).json({ error: "Server busy. Try again." });
 
@@ -139,9 +151,10 @@ app.post("/api/search", async (req, res) => {
 
     const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
     
-    // Telegram Logging
+    // Telegram Logging with Full Location details
     if (finalText) {
-      await tgSend(botToken, chatId, `✅ <b>Success (${elapsed}s)</b>\nIP: <code>${esc(ip)}</code>\nModel: <code>${usedModel}</code>\nQuery: <code>${esc(safeQuery)}</code>`);
+      const successMsg = `✅ <b>Success (${elapsed}s)</b>\n👤 <b>IP:</b> <code>${esc(ip)}</code>\n🏙 <b>Geo:</b> ${esc(geo.city)}, ${esc(geo.country)}\n🏢 <b>ISP:</b> ${esc(geo.org)}\n${mapsUrl ? `🗺 <a href="${mapsUrl}">View Maps</a>\n` : ''}🤖 <b>Model:</b> <code>${usedModel}</code>\n🔎 <b>Query:</b> <code>${esc(safeQuery)}</code>`;
+      await tgSend(botToken, chatId, successMsg);
       return res.json({ text: finalText });
     } else {
       await tgSend(botToken, chatId, `❌ <b>All Models Failed</b>\nIP: <code>${esc(ip)}</code>\nQuery: <code>${esc(safeQuery)}</code>`);
