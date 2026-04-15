@@ -93,19 +93,20 @@ const CacheService = {
   get(key) { return this._map.get(key.toLowerCase().trim()); },
 };
 
+// API Call
 const ApiService = {
   async fetch(url, opts, retries = 2) {
     for (let i = 0; i < retries; i++) {
       try {
         const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 38_000);
+        const t = setTimeout(() => ctrl.abort(), 60_000); 
         const r = await fetch(url, { ...opts, signal: ctrl.signal });
         clearTimeout(t);
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || "Server error");
         return data.text;
       } catch (err) {
-        if (err.name === "AbortError") throw new Error("Request timed out (38s)");
+        if (err.name === "AbortError") throw new Error("Request timed out (60s)");
         if (i === retries - 1) throw err;
         await new Promise((res) => setTimeout(res, 1200 * (i + 1)));
       }
