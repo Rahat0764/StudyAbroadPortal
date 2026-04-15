@@ -1,9 +1,3 @@
-// pages/api/search.js
-// ─────────────────────────────────────────────────────────────────────────────
-// NOTE: rateLimitMap & activeRequests are module-level.
-// Vercel warm instances reuse them — best-effort rate limiting.
-// ─────────────────────────────────────────────────────────────────────────────
-
 const rateLimitMap = new Map();
 let activeRequests = 0;
 const MAX_CONCURRENT = 20;
@@ -149,7 +143,7 @@ export default async function handler(req, res) {
       for (const model of GEMINI_MODELS) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${validKeys[k]}`;
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 28_000);
+        const timer = setTimeout(() => ctrl.abort(), 18_000);
 
         try {
           const r = await fetch(url, {
