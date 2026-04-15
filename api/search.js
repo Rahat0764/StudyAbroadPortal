@@ -7,10 +7,10 @@ setInterval(() => rateLimitMap.clear(), 60_000);
 
 // ── Confirmed Gemini model IDs ───────────────────────────────────────────────
 const GEMINI_MODELS = [
-  { id: "gemini-2.5-flash",              rpm: 5  },
-  { id: "gemini-2.5-flash-lite",         rpm: 10 },
   { id: "gemini-3-flash-preview",        rpm: 5  },
+  { id: "gemini-2.5-flash",              rpm: 5  },
   { id: "gemini-3.1-flash-lite-preview", rpm: 15 },
+  { id: "gemini-2.5-flash-lite",         rpm: 10 },
 ];
 
 const ALLOWED_ORIGINS = [
