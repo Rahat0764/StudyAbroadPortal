@@ -765,7 +765,7 @@ CRITICAL DIRECTIVE: USE GOOGLE SEARCH to find current, authentic data.
     if (cached) { setResultText(cached); setLoading(false); return; }
 
     try {
-      const text = await ApiService.fetch("/api/search", {
+      const text = await ApiService.fetch("https://studyabroadportal.onrender.com/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: buildPrompt(country, lvl, bg), locationData: userInfo, searchQuery: cacheKey }),
@@ -811,7 +811,7 @@ Answer comprehensively using Google Search to ensure verified, current informati
 Format response with emojis and clear sections. End with a "🔗 Useful Links" section (REAL URLs ONLY).`;
 
     try {
-      const text = await ApiService.fetch("/api/search", {
+      const text = await ApiService.fetch("https://studyabroadportal.onrender.com/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, locationData: userInfo, searchQuery: cacheKey }),
