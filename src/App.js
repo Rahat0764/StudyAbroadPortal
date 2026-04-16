@@ -99,14 +99,15 @@ const ApiService = {
     for (let i = 0; i < retries; i++) {
       try {
         const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 60_000); 
+        // ⏳ Frontend timeout increased to 90 seconds to allow backend fallback
+        const t = setTimeout(() => ctrl.abort(), 90_000); 
         const r = await fetch(url, { ...opts, signal: ctrl.signal });
         clearTimeout(t);
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || "Server error");
         return data.text;
       } catch (err) {
-        if (err.name === "AbortError") throw new Error("Request timed out (60s)");
+        if (err.name === "AbortError") throw new Error("Request timed out (90s). The AI is taking too long to respond.");
         if (i === retries - 1) throw err;
         await new Promise((res) => setTimeout(res, 1200 * (i + 1)));
       }
@@ -222,7 +223,6 @@ function MarkdownRenderer({ text }) {
   lines.forEach((line, idx) => {
     const tr = line.trim();
 
-    // Table rows
     if (tr.startsWith("|")) {
       flushLists();
       if (tr.replace(/[\s|:-]/g, "").length === 0) return;
@@ -239,7 +239,6 @@ function MarkdownRenderer({ text }) {
       return;
     }
 
-    // Unordered list
     if (/^[-*•]\s/.test(tr)) {
       flushOl();
       const content = tr.replace(/^[-*•]\s/, "");
@@ -252,7 +251,6 @@ function MarkdownRenderer({ text }) {
       return;
     }
 
-    // Ordered list
     if (/^\d+[.)]\s/.test(tr)) {
       flushUl();
       const num = tr.match(/^(\d+)/)[1];
@@ -348,7 +346,7 @@ BideshPro uses these third-party services, each governed by their own privacy po
 - **Google Search** — Gemini uses real-time Google Search to find scholarship information
 - **ipapi.co** — IP geolocation service that provides city/country/ISP data
 - **Firebase (Google)** — anonymous authentication and usage analytics storage
-- **Vercel** — cloud hosting provider for the application
+- **Vercel / Render** — cloud hosting provider for the application
 
 ## 5. Data Retention
 - Search logs and IP data: retained for up to **90 days**, then permanently deleted
@@ -557,7 +555,6 @@ function MainApp() {
 
   const resultRef = useRef(null);
 
-  // ── Persist result in localStorage (survives viewport change + refresh) ────
   const PERSIST_KEY = "bideshpro_last_result";
 
   // ── Session restore ────────────────────────────────────────────────────────
@@ -572,7 +569,6 @@ function MainApp() {
         if (d.background)      setBackground(d.background);
         if (d.language)        setLanguage(d.language);
       }
-      // Restore last result from localStorage
       const saved = localStorage.getItem(PERSIST_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -683,7 +679,6 @@ function MainApp() {
   }, [debouncedSearch]);
 
 
-  // ✅ FIX: No Broken Links + Strict Rules (Safe Length)
   const buildPrompt = useCallback((country, lvl, bg) => {
     const lvlText = lvl === "all" ? "All Levels (Bachelor, Master's & PhD)" : lvl.charAt(0).toUpperCase() + lvl.slice(1);
     const bgText  = bg  === "all" ? "All Backgrounds (Science, Arts, Commerce)" : bg.charAt(0).toUpperCase() + bg.slice(1);
