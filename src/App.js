@@ -99,15 +99,15 @@ const ApiService = {
     for (let i = 0; i < retries; i++) {
       try {
         const ctrl = new AbortController();
-        // ⏳ Frontend timeout increased to 90 seconds to allow backend fallback
-        const t = setTimeout(() => ctrl.abort(), 90_000); 
+        // ⏳ Timeout reduced back to 60s for better UX
+        const t = setTimeout(() => ctrl.abort(), 60_000); 
         const r = await fetch(url, { ...opts, signal: ctrl.signal });
         clearTimeout(t);
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || "Server error");
         return data.text;
       } catch (err) {
-        if (err.name === "AbortError") throw new Error("Request timed out (90s). The AI is taking too long to respond.");
+        if (err.name === "AbortError") throw new Error("Request timed out (60s). AI is currently overloaded, please try again.");
         if (i === retries - 1) throw err;
         await new Promise((res) => setTimeout(res, 1200 * (i + 1)));
       }
@@ -539,6 +539,7 @@ function MainApp() {
 
   const [resultText, setResultText]         = useState(null);
   const [loading, setLoading]               = useState(false);
+  const [isSlowLoading, setIsSlowLoading]   = useState(false); // New state for UX
   const [error, setError]                   = useState(null);
   const [copied, setCopied]                 = useState(false);
 
@@ -754,10 +755,14 @@ CRITICAL DIRECTIVE: USE GOOGLE SEARCH to find current, authentic data.
   const fetchScholarship = useCallback(async (country, lvl, bg) => {
     if (isOffline) return setError("You are offline. Please check your internet connection.");
     setLoading(true); setError(null); setResultText(null); setCopied(false); setView(VIEWS.RESULT);
+    setIsSlowLoading(false);
 
     const cacheKey = `C_${country.name}_L_${lvl}_B_${bg}_${language}`;
     const cached = CacheService.get(cacheKey);
     if (cached) { setResultText(cached); setLoading(false); return; }
+
+    // After 8 seconds of waiting, show a friendly message
+    const slowTimer = setTimeout(() => setIsSlowLoading(true), 8000);
 
     try {
       const text = await ApiService.fetch("https://studyabroadportal.onrender.com/api/search", {
@@ -774,7 +779,11 @@ CRITICAL DIRECTIVE: USE GOOGLE SEARCH to find current, authentic data.
           ? "⚠️ Backend API error: Please try again."
           : err.message
       );
-    } finally { setLoading(false); }
+    } finally { 
+      clearTimeout(slowTimer);
+      setLoading(false); 
+      setIsSlowLoading(false);
+    }
   }, [userInfo, updateAnalytics, isOffline, language, buildPrompt]);
 
   // ── Global Ask ─────────────────────────────────────────────────────────────
@@ -783,6 +792,7 @@ CRITICAL DIRECTIVE: USE GOOGLE SEARCH to find current, authentic data.
     if (!q.trim() || isOffline) return;
 
     setLoading(true); setGlobalResult(null); setView(VIEWS.SEARCH); setCopied(false);
+    setIsSlowLoading(false);
 
     const cacheKey = `Global_${q.trim()}_${language}`;
     const cached = CacheService.get(cacheKey);
@@ -805,6 +815,9 @@ Answer comprehensively using Google Search to ensure verified, current informati
 
 Format response with emojis and clear sections. End with a "🔗 Useful Links" section (REAL URLs ONLY).`;
 
+    // After 8 seconds of waiting, show a friendly message
+    const slowTimer = setTimeout(() => setIsSlowLoading(true), 8000);
+
     try {
       const text = await ApiService.fetch("https://studyabroadportal.onrender.com/api/search", {
         method: "POST",
@@ -814,8 +827,13 @@ Format response with emojis and clear sections. End with a "🔗 Useful Links" s
       CacheService.set(cacheKey, text);
       setGlobalResult(text);
       saveHistory(q);
-    } catch (err) { setGlobalResult("❌ Error: " + err.message); }
-    finally { setLoading(false); }
+    } catch (err) { 
+      setGlobalResult("❌ Error: " + err.message); 
+    } finally { 
+      clearTimeout(slowTimer);
+      setLoading(false); 
+      setIsSlowLoading(false);
+    }
   }, [globalQ, userInfo, isOffline, language, saveHistory]);
 
   const getTrend = useCallback((name) => {
@@ -1036,10 +1054,24 @@ Format response with emojis and clear sections. End with a "🔗 Useful Links" s
               {loading ? (
                 <div className="text-center py-10">
                   <div className="inline-block text-5xl animate-spin mb-5">🌍</div>
-                  <h3 className="text-[#d4a843] font-bold text-lg mb-2">AI is analyzing verified data...</h3>
-                  <p className="text-[#7a94ad] text-sm mb-6 max-w-[320px] mx-auto leading-relaxed">
-                    Gathering scholarships, part-time jobs, and living costs for {level === 'all' ? 'all levels' : `${level} level`} in {selectedCountry?.name}.
-                  </p>
+                  
+                  {/* Dynamic UX Update Here */}
+                  {isSlowLoading ? (
+                    <>
+                      <h3 className="text-[#2ecc8a] font-bold text-lg mb-2">একাধিক সোর্স থেকে তথ্য যাচাই করা হচ্ছে...</h3>
+                      <p className="text-[#7a94ad] text-sm mb-6 max-w-[340px] mx-auto leading-relaxed">
+                        গুগল সার্চ থেকে {selectedCountry?.name} এর স্কলারশিপের লেটেস্ট ডেডলাইন এবং লিংক চেক করা হচ্ছে। দয়া করে একটু অপেক্ষা করুন।
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-[#d4a843] font-bold text-lg mb-2">AI is analyzing verified data...</h3>
+                      <p className="text-[#7a94ad] text-sm mb-6 max-w-[320px] mx-auto leading-relaxed">
+                        Gathering scholarships, part-time jobs, and living costs for {level === 'all' ? 'all levels' : `${level} level`} in {selectedCountry?.name}.
+                      </p>
+                    </>
+                  )}
+                  
                   <SkeletonLoader />
                 </div>
               ) : error ? (
@@ -1096,7 +1128,15 @@ Format response with emojis and clear sections. End with a "🔗 Useful Links" s
             </div>
 
             {loading ? (
-              <div className="bg-[#070b12] rounded-2xl p-8 border border-[#141f2e]"><SkeletonLoader /></div>
+              <div className="bg-[#070b12] rounded-2xl p-8 border border-[#141f2e] text-center">
+                {/* Dynamic UX for Search */}
+                {isSlowLoading && (
+                  <p className="text-[#2ecc8a] text-sm mb-4 font-bold animate-pulse">
+                    নেটে প্রচুর তথ্য খোঁজা হচ্ছে, দয়া করে একটু অপেক্ষা করুন...
+                  </p>
+                )}
+                <SkeletonLoader />
+              </div>
             ) : globalResult ? (
               <div className="bg-[#070b12] border border-[#141f2e] rounded-2xl p-6 md:p-8 relative shadow-xl">
                 {!globalResult.startsWith("❌") && (
