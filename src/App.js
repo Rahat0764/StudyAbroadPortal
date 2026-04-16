@@ -99,15 +99,15 @@ const ApiService = {
     for (let i = 0; i < retries; i++) {
       try {
         const ctrl = new AbortController();
-        // ⏳ Timeout reduced back to 60s for better UX
-        const t = setTimeout(() => ctrl.abort(), 60_000); 
+        // ⏳ Time updated to 90 seconds. Render cold start (50s) + AI processing (10s) = ~60s minimum needed without UptimeRobot
+        const t = setTimeout(() => ctrl.abort(), 90_000); 
         const r = await fetch(url, { ...opts, signal: ctrl.signal });
         clearTimeout(t);
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || "Server error");
         return data.text;
       } catch (err) {
-        if (err.name === "AbortError") throw new Error("Request timed out (60s). AI is currently overloaded, please try again.");
+        if (err.name === "AbortError") throw new Error("Request timed out (90s). The server is waking up or AI is overloaded, please try again.");
         if (i === retries - 1) throw err;
         await new Promise((res) => setTimeout(res, 1200 * (i + 1)));
       }
@@ -539,7 +539,7 @@ function MainApp() {
 
   const [resultText, setResultText]         = useState(null);
   const [loading, setLoading]               = useState(false);
-  const [isSlowLoading, setIsSlowLoading]   = useState(false); // New state for UX
+  const [isSlowLoading, setIsSlowLoading]   = useState(false); // UX indicator
   const [error, setError]                   = useState(null);
   const [copied, setCopied]                 = useState(false);
 
@@ -548,14 +548,13 @@ function MainApp() {
   const [history, setHistory]               = useState([]);
   const [analyticsData, setAnalyticsData]   = useState([]);
 
-  const [policyModal, setPolicyModal]       = useState(null); // "privacy" | "terms" | null
+  const [policyModal, setPolicyModal]       = useState(null); 
   const [consentGiven, setConsentGiven]     = useState(() => {
     try { return localStorage.getItem("bideshpro_consent") === "true"; }
     catch { return false; }
   });
 
   const resultRef = useRef(null);
-
   const PERSIST_KEY = "bideshpro_last_result";
 
   // ── Session restore ────────────────────────────────────────────────────────
@@ -761,7 +760,6 @@ CRITICAL DIRECTIVE: USE GOOGLE SEARCH to find current, authentic data.
     const cached = CacheService.get(cacheKey);
     if (cached) { setResultText(cached); setLoading(false); return; }
 
-    // After 8 seconds of waiting, show a friendly message
     const slowTimer = setTimeout(() => setIsSlowLoading(true), 8000);
 
     try {
@@ -815,7 +813,6 @@ Answer comprehensively using Google Search to ensure verified, current informati
 
 Format response with emojis and clear sections. End with a "🔗 Useful Links" section (REAL URLs ONLY).`;
 
-    // After 8 seconds of waiting, show a friendly message
     const slowTimer = setTimeout(() => setIsSlowLoading(true), 8000);
 
     try {
@@ -1055,7 +1052,6 @@ Format response with emojis and clear sections. End with a "🔗 Useful Links" s
                 <div className="text-center py-10">
                   <div className="inline-block text-5xl animate-spin mb-5">🌍</div>
                   
-                  {/* Dynamic UX Update Here */}
                   {isSlowLoading ? (
                     <>
                       <h3 className="text-[#2ecc8a] font-bold text-lg mb-2">একাধিক সোর্স থেকে তথ্য যাচাই করা হচ্ছে...</h3>
@@ -1129,7 +1125,6 @@ Format response with emojis and clear sections. End with a "🔗 Useful Links" s
 
             {loading ? (
               <div className="bg-[#070b12] rounded-2xl p-8 border border-[#141f2e] text-center">
-                {/* Dynamic UX for Search */}
                 {isSlowLoading && (
                   <p className="text-[#2ecc8a] text-sm mb-4 font-bold animate-pulse">
                     নেটে প্রচুর তথ্য খোঁজা হচ্ছে, দয়া করে একটু অপেক্ষা করুন...
