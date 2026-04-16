@@ -1,4 +1,4 @@
-// App.js — BideshPro
+// Main
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { initializeApp } from "firebase/app";
 import {
@@ -21,7 +21,7 @@ import {
 const VIEWS = { COUNTRIES: "countries", SEARCH: "search", RESULT: "result" };
 const CACHE_LIMIT = 25;
 
-// ── Firebase ───────────────────────────────────────────────────────────────────
+// Firebase
 let app, auth, db, appId;
 try {
   const firebaseConfig =
@@ -35,7 +35,7 @@ try {
   }
 } catch (_) {}
 
-// ── Error Boundary ─────────────────────────────────────────────────────────────
+// Error Boundary
 class ErrorBoundary extends React.Component {
   state = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
@@ -61,7 +61,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// ── Hooks ──────────────────────────────────────────────────────────────────────
+// Hooks
 function useDebounce(value, delay) {
   const [dv, setDv] = useState(value);
   useEffect(() => {
@@ -83,7 +83,7 @@ function useOfflineStatus() {
   return offline;
 }
 
-// ── Services ───────────────────────────────────────────────────────────────────
+// Services
 const CacheService = {
   _map: new Map(),
   set(key, val) {
@@ -115,7 +115,7 @@ const ApiService = {
   },
 };
 
-// ── IP Geolocation ─────────────────────────────────────────────────────────────
+// IP Geolocation
 async function fetchUserIPDetails() {
   try {
     const ctrl = new AbortController();
@@ -145,7 +145,7 @@ async function fetchUserIPDetails() {
   }
 }
 
-// ── Clipboard ──────────────────────────────────────────────────────────────────
+// Clipboard
 async function copyToClipboard(text) {
   try {
     if (navigator.clipboard && window.isSecureContext) {
@@ -162,7 +162,7 @@ async function copyToClipboard(text) {
   } catch { return false; }
 }
 
-// ── Markdown Renderer ──────────────────────────────────────────────────────────
+// Markdown Renderer
 function MarkdownRenderer({ text }) {
   if (!text) return null;
 
@@ -287,7 +287,7 @@ function MarkdownRenderer({ text }) {
   return <div className="space-y-0.5 font-sans">{els}</div>;
 }
 
-// ── Skeleton Loader ────────────────────────────────────────────────────────────
+// Skeleton Loader
 function SkeletonLoader() {
   return (
     <div className="animate-pulse space-y-5 pt-4 text-left">
@@ -307,7 +307,7 @@ function SkeletonLoader() {
   );
 }
 
-// ── Policy Modal ───────────────────────────────────────────────────────────────
+// Policy Modal
 function PolicyModal({ type, onClose }) {
   const isPrivacy = type === "privacy";
 
@@ -471,7 +471,7 @@ These Terms shall be governed by and construed in accordance with the laws of Ba
   );
 }
 
-// ── Consent Banner ─────────────────────────────────────────────────────────────
+// Consent Banner
 function ConsentBanner({ onAccept, onViewPolicy }) {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[100] bg-[#070b12] border-t border-[#1e3045] shadow-2xl p-4">
@@ -493,7 +493,7 @@ function ConsentBanner({ onAccept, onViewPolicy }) {
   );
 }
 
-// ── Countries ──────────────────────────────────────────────────────────────────
+// Countries
 const COUNTRIES = [
   { name: "United States",   flag: "🇺🇸", hint: "Fulbright, Assistantships, OPT" },
   { name: "United Kingdom",  flag: "🇬🇧", hint: "Chevening, Commonwealth, Gates" },
@@ -523,7 +523,7 @@ const COUNTRIES = [
   { name: "New Zealand",     flag: "🇳🇿", hint: "NZAS, Commonwealth NZ" },
 ];
 
-// ── Main App ───────────────────────────────────────────────────────────────────
+// Main App
 function MainApp() {
   const [view, setView]                     = useState(VIEWS.COUNTRIES);
   const [language, setLanguage]             = useState("English");
@@ -557,7 +557,7 @@ function MainApp() {
   const resultRef = useRef(null);
   const PERSIST_KEY = "bideshpro_last_result";
 
-  // ── Session restore ────────────────────────────────────────────────────────
+  // Session restore
   useEffect(() => {
     try {
       const s = sessionStorage.getItem("bideshpro_state");
@@ -580,7 +580,7 @@ function MainApp() {
     } catch (_) {}
   }, []);
 
-  // ── Session save (view/filters/language) ──────────────────────────────────
+  // Session save (view/filters/language)
   useEffect(() => {
     try {
       sessionStorage.setItem(
@@ -590,7 +590,7 @@ function MainApp() {
     } catch (_) {}
   }, [view, selectedCountry, level, background, language]);
 
-  // ── Persist results to localStorage ───────────────────────────────────────
+  // Persist results to localStorage
   useEffect(() => {
     if (!resultText && !globalResult) return;
     try {
@@ -603,7 +603,7 @@ function MainApp() {
     }
   }, [resultText, globalResult]);
 
-  // ── Firebase Auth ──────────────────────────────────────────────────────────
+  // Firebase Auth
   useEffect(() => {
     if (!auth) return;
     const init = async () => {
@@ -617,10 +617,10 @@ function MainApp() {
     return onAuthStateChanged(auth, setUserAuth);
   }, []);
 
-  // ── IP Details ─────────────────────────────────────────────────────────────
+  // IP Details
   useEffect(() => { fetchUserIPDetails().then(setUserInfo); }, []);
 
-  // ── Analytics listener ─────────────────────────────────────────────────────
+  // Analytics listener
   useEffect(() => {
     if (!userAuth || !db || !appId) return;
     const ref = collection(db, "artifacts", appId, "public", "data", "search_analytics");
@@ -633,13 +633,13 @@ function MainApp() {
     return () => unsub();
   }, [userAuth]);
 
-  // ── Auto-scroll to result ──────────────────────────────────────────────────
+  // Auto-scroll to result
   useEffect(() => {
     if (resultText && resultRef.current)
       resultRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [resultText]);
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // Helpers
   const saveHistory = useCallback((q) => {
     setHistory((prev) => {
       const updated = [q, ...prev.filter((x) => x !== q)].slice(0, 6);
@@ -750,7 +750,7 @@ CRITICAL DIRECTIVE: USE GOOGLE SEARCH to find current, authentic data.
 | Visa Portal | ... |`;
   }, [language]);
 
-  // ── Fetch scholarship ──────────────────────────────────────────────────────
+  // Fetch scholarship
   const fetchScholarship = useCallback(async (country, lvl, bg) => {
     if (isOffline) return setError("You are offline. Please check your internet connection.");
     setLoading(true); setError(null); setResultText(null); setCopied(false); setView(VIEWS.RESULT);
@@ -784,7 +784,7 @@ CRITICAL DIRECTIVE: USE GOOGLE SEARCH to find current, authentic data.
     }
   }, [userInfo, updateAnalytics, isOffline, language, buildPrompt]);
 
-  // ── Global Ask ─────────────────────────────────────────────────────────────
+  // Global Ask
   const handleGlobalAsk = useCallback(async (qOverride) => {
     const q = typeof qOverride === "string" ? qOverride : globalQ;
     if (!q.trim() || isOffline) return;
@@ -841,7 +841,7 @@ Format response with emojis and clear sections. End with a "🔗 Useful Links" s
     return null;
   }, [analyticsData]);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // Render
   return (
     <div className="min-h-screen bg-[#03050a] text-[#dde6f0] font-sans selection:bg-[#d4a843] selection:text-black pb-20">
       {isOffline && (
