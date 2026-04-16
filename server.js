@@ -4,9 +4,7 @@ const cors = require("cors");
 const app = express();
 app.use(express.json({ limit: "50mb" }));
 
-// ─────────────────────────────────────────
 // CONFIG
-// ─────────────────────────────────────────
 const PORT = process.env.PORT || 10000;
 
 const rateLimitMap = new Map();
@@ -31,9 +29,7 @@ const ALLOWED_ORIGINS = [
   "www.bidesh.pro.bd"
 ];
 
-// ─────────────────────────────────────────
 // HELPERS
-// ─────────────────────────────────────────
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 async function tgSend(botToken, chatId, html) {
@@ -49,9 +45,7 @@ async function tgSend(botToken, chatId, html) {
   }
 }
 
-// ─────────────────────────────────────────
 // CORS
-// ─────────────────────────────────────────
 app.use((req, res, next) => {
   const origin = req.headers.origin || "";
   const allowed = !origin || ALLOWED_ORIGINS.some((o) => origin.includes(o));
@@ -66,16 +60,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// ─────────────────────────────────────────
 // HEALTH CHECK ROUTE (For UptimeRobot)
-// ─────────────────────────────────────────
 app.get("/", (req, res) => {
   res.status(200).send("✅ BideshPro Backend is Awake and Running!");
 });
 
-// ─────────────────────────────────────────
 // MAIN ROUTE (/api/search)
-// ─────────────────────────────────────────
 app.post("/api/search", async (req, res) => {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const chatId   = process.env.TELEGRAM_CHAT_ID;
@@ -97,7 +87,7 @@ app.post("/api/search", async (req, res) => {
   };
   const mapsUrl = geo.lat && geo.lon ? `https://www.google.com/maps?q=${geo.lat},${geo.lon}` : null;
 
-  // ── Error Logging Helper for Telegram ──
+  // Error Logging Helper for Telegram
   const logAndReturnError = async (statusCode, clientMsg, tgDetail) => {
     const errorMsg = `🚨 <b>BideshPro API Error</b>\n\n👤 <b>IP:</b> <code>${esc(ip)}</code>\n🏙 <b>Geo:</b> ${esc(geo.city)}, ${esc(geo.country)}\n🔎 <b>Query:</b> <code>${esc(safeQuery)}</code>\n🛑 <b>Status:</b> ${statusCode}\n⚠️ <b>Reason:</b> ${esc(tgDetail)}`;
     await tgSend(botToken, chatId, errorMsg);
@@ -197,9 +187,7 @@ app.post("/api/search", async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────
 // START SERVER
-// ─────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`Render Backend is running on port ${PORT}`);
 });
