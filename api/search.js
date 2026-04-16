@@ -5,7 +5,7 @@ const MAX_RPM = 15;
 
 setInterval(() => rateLimitMap.clear(), 60_000);
 
-// ── Confirmed Gemini model IDs ───────────────────────────────────────────────
+// Gemini models
 const GEMINI_MODELS = [
   { id: "gemini-3-flash-preview",        rpm: 5  },
   { id: "gemini-2.5-flash",              rpm: 5  },
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
   const chatId   = process.env.TELEGRAM_CHAT_ID;
   const startMs  = Date.now();
 
-  // ── Real IP & Geo (Parsed early for global logging) ────────────────────────
+  // Real IP & Geo
   const ip =
     req.headers["x-real-ip"] ||
     req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
   };
   const safeQuery = String(searchQuery || "Unknown").slice(0, 400);
 
-  // Helper to log early errors to Telegram before returning
+  // Logs
   const logAndReturnError = async (statusCode, clientMsg, tgDetail) => {
     const errorMsg = [
       `🚨 <b>BideshPro API Error (Early Exit)</b>`,
@@ -86,7 +86,7 @@ export default async function handler(req, res) {
     return res.status(statusCode).json({ error: clientMsg });
   };
 
-  // ── CORS ───────────────────────────────────────────────────────────────────
+  // CORS
   const origin = req.headers.origin || "";
   const isAllowed =
     !origin ||
@@ -102,14 +102,14 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return logAndReturnError(405, "Method not allowed", `Invalid method: ${req.method}`);
 
-  // ── Guards ─────────────────────────────────────────────────────────────────
+  // Guards
   if (activeRequests >= MAX_CONCURRENT)
     return logAndReturnError(503, "Server too busy. Try again shortly.", "MAX_CONCURRENT reached");
   
   if (JSON.stringify(req.body || {}).length > 20_000)
     return logAndReturnError(413, "Payload too large", "Request body exceeded 20KB");
 
-  // ── Per-IP rate limit ──────────────────────────────────────────────────────
+  // Per-IP rate limit
   const reqCount = rateLimitMap.get(ip) || 0;
   if (reqCount >= MAX_RPM)
     return logAndReturnError(429, "Too many requests. Please wait a minute.", `Rate limit hit (${reqCount} reqs)`);
@@ -123,13 +123,13 @@ export default async function handler(req, res) {
     ? `https://www.google.com/maps?q=${geo.lat},${geo.lon}`
     : null;
 
-  // ── Keys ───────────────────────────────────────────────────────────────────
+  // Keys
   const apiKeysString = process.env.GEMINI_API_KEYS;
   if (!apiKeysString) return logAndReturnError(500, "Server config error", "GEMINI_API_KEYS missing");
   const validKeys = apiKeysString.split(",").map((k) => k.trim()).filter(Boolean);
   if (!validKeys.length) return logAndReturnError(500, "No API keys configured", "GEMINI_API_KEYS array is empty");
 
-  // ── Attempt log ────────────────────────────────────────────────────────────
+  // Attempt log
   const attempts = [];
   let finalText  = null;
   let usedKeyIdx = -1;
@@ -195,7 +195,7 @@ export default async function handler(req, res) {
 
     const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
 
-    // ── Telegram: all attempts + geo + result preview ──────────────────────
+    // Telegram result preview
     const attemptLines = attempts
       .map(
         (a) =>
