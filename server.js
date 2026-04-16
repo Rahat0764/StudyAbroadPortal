@@ -58,12 +58,19 @@ app.use((req, res, next) => {
 
   if (allowed) {
     res.setHeader("Access-Control-Allow-Origin", origin || "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   }
 
   if (req.method === "OPTIONS") return res.sendStatus(200);
   next();
+});
+
+// ─────────────────────────────────────────
+// HEALTH CHECK ROUTE (For UptimeRobot)
+// ─────────────────────────────────────────
+app.get("/", (req, res) => {
+  res.status(200).send("✅ BideshPro Backend is Awake and Running!");
 });
 
 // ─────────────────────────────────────────
@@ -125,7 +132,6 @@ app.post("/api/search", async (req, res) => {
     for (let k = 0; k < keys.length; k++) {
       for (const model of GEMINI_MODELS) {
         const controller = new AbortController();
-        // ⏳ Reduced backend timeout to 15s per model. Helps fail fast so the frontend doesn't timeout!
         const timeoutId = setTimeout(() => controller.abort(), 15000); 
 
         try {
