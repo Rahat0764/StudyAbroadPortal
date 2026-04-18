@@ -1054,9 +1054,9 @@ Format response with emojis and clear sections. End with a "🔗 Useful Links" s
                   
                   {isSlowLoading ? (
                     <>
-                      <h3 className="text-[#2ecc8a] font-bold text-lg mb-2">একাধিক সোর্স থেকে তথ্য যাচাই করা হচ্ছে...</h3>
+                      <h3 className="text-[#2ecc8a] font-bold text-lg mb-2">Finding the best opportunities for you...</h3>
                       <p className="text-[#7a94ad] text-sm mb-6 max-w-[340px] mx-auto leading-relaxed">
-                        গুগল সার্চ থেকে {selectedCountry?.name} এর স্কলারশিপের লেটেস্ট ডেডলাইন এবং লিংক চেক করা হচ্ছে। দয়া করে একটু অপেক্ষা করুন।
+                        Scanning Google for the latest {selectedCountry?.name} scholarship deadlines and links. Just a moment (max 60s), please!
                       </p>
                     </>
                   ) : (
