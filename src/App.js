@@ -1127,7 +1127,7 @@ Format response with emojis and clear sections. End with a "🔗 Useful Links" s
               <div className="bg-[#070b12] rounded-2xl p-8 border border-[#141f2e] text-center">
                 {isSlowLoading && (
                   <p className="text-[#2ecc8a] text-sm mb-4 font-bold animate-pulse">
-                    নেটে প্রচুর তথ্য খোঁজা হচ্ছে, দয়া করে একটু অপেক্ষা করুন...
+                    Scouring the web for the best results. Just a moment...
                   </p>
                 )}
                 <SkeletonLoader />
