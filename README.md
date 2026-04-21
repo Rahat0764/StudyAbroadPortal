@@ -51,8 +51,8 @@ Follow these steps to run the project locally.
 
 ### 1. Clone the repository
 ```bash
-git clone [https://github.com/yourusername/bideshpro.git](https://github.com/yourusername/bideshpro.git)
-cd bideshpro
+git clone [https://github.com/Rahat0764/StudyAbroadPortal.git](https://github.com/Rahat0764/StudyAbroadPortal.git)
+cd StudyAbroadPortal
 ```
 
 ### 2. Frontend Setup
