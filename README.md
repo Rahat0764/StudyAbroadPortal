@@ -115,11 +115,17 @@ All scholarship information provided by BideshPro is AI-generated using real-tim
 
 ---
 
-## 👨‍💻 Developer
+## 🤝 Contributing
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/Rahat0764/autopost/issues).
 
-**Rahat Ahmed** - [LinkedIn Profile](https://www.linkedin.com/in/RahatAhmedX)  
-- Website: [bidesh.pro.bd](https://bidesh.pro.bd)
+---
 
-<p align="center">
-  <i>Developed with ❤️ for Bangladeshi Students</i>
-</p>
+## 👨‍💻 Author
+
+**Rahat Ahmed**
+* LinkedIn: [@RahatAhmedX](https://www.linkedin.com/in/RahatAhmedX)
+* GitHub: [@Rahat0764](https://github.com/Rahat0764)
+
+<div align="center">
+  <i>If you find this project useful, don't forget to leave a ⭐!</i>
+</div>
