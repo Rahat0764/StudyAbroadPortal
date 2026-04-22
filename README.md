@@ -116,7 +116,7 @@ All scholarship information provided by BideshPro is AI-generated using real-tim
 ---
 
 ## 🤝 Contributing
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/Rahat0764/autopost/issues).
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/Rahat0764/StudyAbroadPortal/issues).
 
 ---
 
