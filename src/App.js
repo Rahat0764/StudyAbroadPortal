@@ -1,4 +1,3 @@
-// Main
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { initializeApp } from "firebase/app";
 import {
@@ -21,13 +20,11 @@ import {
 const VIEWS = { COUNTRIES: "countries", SEARCH: "search", RESULT: "result" };
 const CACHE_LIMIT = 25;
 
-// Firebase
+// --- Firebase Initialization ---
 let app, auth, db, appId;
 try {
-  const firebaseConfig =
-    typeof __firebase_config !== "undefined" ? JSON.parse(__firebase_config) : null;
-  appId =
-    typeof __app_id !== "undefined" ? String(__app_id) : "bideshpro-default";
+  const firebaseConfig = typeof __firebase_config !== "undefined" ? JSON.parse(__firebase_config) : null;
+  appId = typeof __app_id !== "undefined" ? String(__app_id) : "bideshpro-default";
   if (firebaseConfig) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
@@ -35,7 +32,7 @@ try {
   }
 } catch (_) {}
 
-// Error Boundary
+// --- Error Boundary ---
 class ErrorBoundary extends React.Component {
   state = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
@@ -43,14 +40,14 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError)
       return (
-        <div className="min-h-screen bg-[#03050a] flex items-center justify-center text-center p-10">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-center p-10">
           <div>
             <div className="text-5xl mb-4">⚠️</div>
-            <h2 className="text-xl font-bold text-white mb-2">Something went wrong</h2>
-            <p className="text-[#7a94ad] mb-4">Please refresh the page.</p>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Something went wrong</h2>
+            <p className="text-slate-600 dark:text-slate-400 mb-4">Please refresh the page.</p>
             <button
               onClick={() => window.location.reload()}
-              className="bg-[#d4a843] text-black font-bold px-6 py-2 rounded-xl"
+              className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-6 py-2 rounded-xl transition-colors"
             >
               Refresh
             </button>
@@ -61,7 +58,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Hooks
+// --- Hooks ---
 function useDebounce(value, delay) {
   const [dv, setDv] = useState(value);
   useEffect(() => {
@@ -83,7 +80,29 @@ function useOfflineStatus() {
   return offline;
 }
 
-// Services
+function useTheme() {
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("theme") || "dark";
+    }
+    return "dark";
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  return { theme, toggleTheme };
+}
+
+// --- Services ---
 const CacheService = {
   _map: new Map(),
   set(key, val) {
@@ -93,13 +112,11 @@ const CacheService = {
   get(key) { return this._map.get(key.toLowerCase().trim()); },
 };
 
-// API Call
 const ApiService = {
   async fetch(url, opts, retries = 2) {
     for (let i = 0; i < retries; i++) {
       try {
         const ctrl = new AbortController();
-        // ⏳ Time updated to 90 seconds. Render cold start (50s) + AI processing (10s) = ~60s minimum needed without UptimeRobot
         const t = setTimeout(() => ctrl.abort(), 90_000); 
         const r = await fetch(url, { ...opts, signal: ctrl.signal });
         clearTimeout(t);
@@ -115,7 +132,7 @@ const ApiService = {
   },
 };
 
-// IP Geolocation
+// --- IP Geolocation ---
 async function fetchUserIPDetails() {
   try {
     const ctrl = new AbortController();
@@ -124,28 +141,17 @@ async function fetchUserIPDetails() {
     clearTimeout(t);
     const d = await r.json();
     return {
-      ip:          d.ip           || "Unknown",
-      city:        d.city         || "Unknown",
-      region:      d.region       || "Unknown",
-      country:     d.country_name || "Unknown",
-      countryCode: d.country_code || "??",
-      org:         d.org          || "Unknown",
-      latitude:    d.latitude     || null,
-      longitude:   d.longitude    || null,
-      timezone:    d.timezone     || "Unknown",
-      postal:      d.postal       || "Unknown",
+      ip: d.ip || "Unknown", city: d.city || "Unknown", region: d.region || "Unknown",
+      country: d.country_name || "Unknown", countryCode: d.country_code || "??",
+      org: d.org || "Unknown", latitude: d.latitude || null, longitude: d.longitude || null,
+      timezone: d.timezone || "Unknown", postal: d.postal || "Unknown",
     };
   } catch {
-    return {
-      ip:"Unknown", city:"Unknown", region:"Unknown",
-      country:"Unknown", countryCode:"??",
-      org:"Unknown", latitude:null, longitude:null,
-      timezone:"Unknown", postal:"Unknown",
-    };
+    return { ip:"Unknown", city:"Unknown", region:"Unknown", country:"Unknown", countryCode:"??", org:"Unknown", latitude:null, longitude:null, timezone:"Unknown", postal:"Unknown" };
   }
 }
 
-// Clipboard
+// --- Clipboard Helper ---
 async function copyToClipboard(text) {
   try {
     if (navigator.clipboard && window.isSecureContext) {
@@ -162,13 +168,19 @@ async function copyToClipboard(text) {
   } catch { return false; }
 }
 
-// Markdown Renderer
+// --- Icons ---
+const SunIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+);
+const MoonIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+);
+
+// --- Markdown Renderer ---
 function MarkdownRenderer({ text }) {
   if (!text) return null;
 
-  const escHtml = (s) =>
-    s.replace(/[&<>'"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
-
+  const escHtml = (s) => s.replace(/[&<>'"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
   const sanitizeUrl = (url) => {
     const u = url.trim().replace(/['"]/g, "");
     if (/^(javascript|data):/i.test(u)) return "#";
@@ -177,18 +189,16 @@ function MarkdownRenderer({ text }) {
 
   const parseInline = (raw) => {
     let h = escHtml(raw);
-    h = h.replace(/\*\*(.+?)\*\*/g, `<strong class="text-white font-semibold">$1</strong>`);
-    h = h.replace(/\*(.+?)\*/g, `<em class="text-[#22c7b8] not-italic font-medium">$1</em>`);
-    h = h.replace(/`([^`]+)`/g, `<code class="bg-[#1a2a3a] text-[#4a9eff] px-1.5 py-0.5 rounded text-xs font-mono">$1</code>`);
+    h = h.replace(/\*\*(.+?)\*\*/g, `<strong class="text-slate-900 dark:text-white font-bold">$1</strong>`);
+    h = h.replace(/\*(.+?)\*/g, `<em class="text-emerald-600 dark:text-emerald-400 not-italic font-medium">$1</em>`);
+    h = h.replace(/`([^`]+)`/g, `<code class="bg-slate-200 dark:bg-slate-800 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded text-xs font-mono">$1</code>`);
     h = h.replace(
       /\[([^\]]+)\]\(([^)]+)\)/g,
-      (_, title, url) =>
-        `<a href="${sanitizeUrl(url)}" target="_blank" rel="noopener noreferrer" class="text-[#4a9eff] underline underline-offset-2 hover:text-[#2ecc8a] font-medium break-all" title="${escHtml(url)}">🔗 ${escHtml(title)}</a>`
+      (_, title, url) => `<a href="${sanitizeUrl(url)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 underline underline-offset-2 hover:text-emerald-500 font-medium break-all transition-colors" title="${escHtml(url)}">🔗 ${escHtml(title)}</a>`
     );
     h = h.replace(
       /(?<!href="|">)(https?:\/\/[^\s<"']+)/g,
-      (url) =>
-        `<a href="${sanitizeUrl(url)}" target="_blank" rel="noopener noreferrer" class="text-[#4a9eff] underline underline-offset-2 hover:text-[#2ecc8a] text-xs break-all">🔗 ${url}</a>`
+      (url) => `<a href="${sanitizeUrl(url)}" target="_blank" rel="noopener noreferrer" class="text-blue-500 dark:text-blue-400 underline underline-offset-2 hover:text-emerald-500 text-xs break-all transition-colors">🔗 ${url}</a>`
     );
     return h;
   };
@@ -198,27 +208,16 @@ function MarkdownRenderer({ text }) {
   let ulItems = [];
   let olItems = [];
 
-  const flushUl = () => {
+  const flushLists = () => {
     if (ulItems.length) {
-      els.push(
-        <ul key={`ul-${els.length}`} className="list-none mb-4 space-y-1.5 text-[#7a94ad]">
-          {ulItems}
-        </ul>
-      );
+      els.push(<ul key={`ul-${els.length}`} className="list-none mb-5 space-y-2 text-slate-700 dark:text-slate-300">{ulItems}</ul>);
       ulItems = [];
     }
-  };
-  const flushOl = () => {
     if (olItems.length) {
-      els.push(
-        <ol key={`ol-${els.length}`} className="list-none mb-4 space-y-1.5 text-[#7a94ad]">
-          {olItems}
-        </ol>
-      );
+      els.push(<ol key={`ol-${els.length}`} className="list-none mb-5 space-y-2 text-slate-700 dark:text-slate-300">{olItems}</ol>);
       olItems = [];
     }
   };
-  const flushLists = () => { flushUl(); flushOl(); };
 
   lines.forEach((line, idx) => {
     const tr = line.trim();
@@ -229,9 +228,9 @@ function MarkdownRenderer({ text }) {
       const cells = tr.split("|").filter(Boolean).map((c) => c.trim());
       const isHeader = idx === 0 || (lines[idx - 1]?.trim() === "" && !lines[idx - 2]?.trim().startsWith("|"));
       els.push(
-        <div key={`tr-${idx}`} className={`flex gap-0 ${isHeader ? "border-b border-[#1e3045]" : "border-b border-[#141f2e]/50"} mb-0`}>
+        <div key={`tr-${idx}`} className={`flex gap-0 ${isHeader ? "border-b-2 border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/50 rounded-t-lg" : "border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30"} mb-0 transition-colors`}>
           {cells.map((c, ci) => (
-            <div key={ci} className={`flex-1 px-3 py-2 text-sm ${isHeader ? "text-[#d4a843] font-semibold" : "text-[#7a94ad]"}`}
+            <div key={ci} className={`flex-1 px-4 py-3 text-sm ${isHeader ? "text-amber-600 dark:text-amber-500 font-bold" : "text-slate-700 dark:text-slate-300"}`}
               dangerouslySetInnerHTML={{ __html: parseInline(c) }} />
           ))}
         </div>
@@ -240,11 +239,10 @@ function MarkdownRenderer({ text }) {
     }
 
     if (/^[-*•]\s/.test(tr)) {
-      flushOl();
       const content = tr.replace(/^[-*•]\s/, "");
       ulItems.push(
-        <li key={`li-${idx}`} className="flex gap-2 items-start pl-2 leading-relaxed">
-          <span className="text-[#d4a843] mt-1 text-xs flex-shrink-0">▸</span>
+        <li key={`li-${idx}`} className="flex gap-2.5 items-start pl-2 leading-relaxed">
+          <span className="text-amber-500 mt-1 text-sm flex-shrink-0">▸</span>
           <span dangerouslySetInnerHTML={{ __html: parseInline(content) }} />
         </li>
       );
@@ -252,12 +250,11 @@ function MarkdownRenderer({ text }) {
     }
 
     if (/^\d+[.)]\s/.test(tr)) {
-      flushUl();
       const num = tr.match(/^(\d+)/)[1];
       const content = tr.replace(/^\d+[.)]\s/, "");
       olItems.push(
-        <li key={`li-${idx}`} className="flex gap-2 items-start pl-2 leading-relaxed">
-          <span className="text-[#d4a843] font-bold text-sm flex-shrink-0 min-w-[18px]">{num}.</span>
+        <li key={`li-${idx}`} className="flex gap-2.5 items-start pl-2 leading-relaxed">
+          <span className="text-amber-600 dark:text-amber-500 font-bold text-sm flex-shrink-0 min-w-[20px]">{num}.</span>
           <span dangerouslySetInnerHTML={{ __html: parseInline(content) }} />
         </li>
       );
@@ -265,204 +262,107 @@ function MarkdownRenderer({ text }) {
     }
 
     flushLists();
-    if (!tr) { els.push(<div key={`sp-${idx}`} className="h-2" />); return; }
+    if (!tr) { els.push(<div key={`sp-${idx}`} className="h-3" />); return; }
 
     if (tr.startsWith("# "))
-      els.push(<h1 key={`h1-${idx}`} className="text-3xl font-extrabold text-[#d4a843] mt-6 mb-4 font-serif" dangerouslySetInnerHTML={{ __html: parseInline(tr.slice(2)) }} />);
+      els.push(<h1 key={`h1-${idx}`} className="text-3xl sm:text-4xl font-extrabold text-amber-600 dark:text-amber-500 mt-8 mb-6 font-serif" dangerouslySetInnerHTML={{ __html: parseInline(tr.slice(2)) }} />);
     else if (tr.startsWith("## "))
-      els.push(<h2 key={`h2-${idx}`} className="text-2xl font-extrabold text-white mt-8 mb-4 bg-gradient-to-r from-[#f0c96622] to-transparent px-4 py-2.5 rounded-xl border-l-4 border-[#d4a843]" dangerouslySetInnerHTML={{ __html: parseInline(tr.slice(3)) }} />);
+      els.push(<h2 key={`h2-${idx}`} className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mt-10 mb-5 bg-gradient-to-r from-amber-500/10 to-transparent dark:from-amber-500/20 px-5 py-3 rounded-xl border-l-4 border-amber-500 shadow-sm" dangerouslySetInnerHTML={{ __html: parseInline(tr.slice(3)) }} />);
     else if (tr.startsWith("### "))
-      els.push(<h3 key={`h3-${idx}`} className="text-lg font-bold text-[#d4a843] mt-6 mb-2 pb-1 border-b border-[#141f2e]" dangerouslySetInnerHTML={{ __html: parseInline(tr.slice(4)) }} />);
+      els.push(<h3 key={`h3-${idx}`} className="text-xl font-bold text-amber-600 dark:text-amber-400 mt-8 mb-3 pb-2 border-b border-slate-200 dark:border-slate-800" dangerouslySetInnerHTML={{ __html: parseInline(tr.slice(4)) }} />);
     else if (tr.startsWith("#### "))
-      els.push(<h4 key={`h4-${idx}`} className="text-base font-semibold text-[#4a9eff] mt-4 mb-1" dangerouslySetInnerHTML={{ __html: parseInline(tr.slice(5)) }} />);
+      els.push(<h4 key={`h4-${idx}`} className="text-lg font-semibold text-blue-600 dark:text-blue-400 mt-6 mb-2" dangerouslySetInnerHTML={{ __html: parseInline(tr.slice(5)) }} />);
     else if (tr.startsWith("---") || tr.startsWith("___"))
-      els.push(<hr key={`hr-${idx}`} className="border-[#141f2e] my-4" />);
+      els.push(<hr key={`hr-${idx}`} className="border-slate-200 dark:border-slate-800 my-6" />);
     else if (tr.startsWith("> "))
-      els.push(<blockquote key={`bq-${idx}`} className="border-l-4 border-[#d4a843]/50 bg-[#0c1520] px-4 py-2 rounded-r-lg my-3 text-[#7a94ad] italic text-sm" dangerouslySetInnerHTML={{ __html: parseInline(tr.slice(2)) }} />);
+      els.push(<blockquote key={`bq-${idx}`} className="border-l-4 border-amber-500/70 bg-amber-50 dark:bg-slate-800/50 px-5 py-3 rounded-r-xl my-4 text-slate-700 dark:text-slate-300 italic text-sm shadow-sm" dangerouslySetInnerHTML={{ __html: parseInline(tr.slice(2)) }} />);
     else
-      els.push(<p key={`p-${idx}`} className="text-[#8faabb] leading-relaxed mb-2 text-sm" dangerouslySetInnerHTML={{ __html: parseInline(tr) }} />);
+      els.push(<p key={`p-${idx}`} className="text-slate-700 dark:text-slate-300 leading-relaxed mb-3 text-[15px]" dangerouslySetInnerHTML={{ __html: parseInline(tr) }} />);
   });
 
   flushLists();
-  return <div className="space-y-0.5 font-sans">{els}</div>;
+  return <div className="space-y-1 font-sans">{els}</div>;
 }
 
-// Skeleton Loader
+// --- Skeleton Loader ---
 function SkeletonLoader() {
   return (
-    <div className="animate-pulse space-y-5 pt-4 text-left">
-      <div className="h-8 bg-[#141f2e] rounded-lg w-2/3" />
-      <div className="space-y-2">
+    <div className="animate-pulse space-y-6 pt-4 text-left w-full">
+      <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded-xl w-3/4 md:w-1/2" />
+      <div className="space-y-3">
         {[100, 85, 90, 70, 95].map((w, i) => (
-          <div key={i} style={{ width: `${w}%` }} className="h-3.5 bg-[#141f2e] rounded" />
+          <div key={i} style={{ width: `${w}%` }} className="h-4 bg-slate-200 dark:bg-slate-800 rounded-md" />
         ))}
       </div>
-      <div className="h-7 bg-[#141f2e] rounded-lg w-1/2 mt-4" />
-      <div className="space-y-2">
-        {[80, 95, 75].map((w, i) => (
-          <div key={i} style={{ width: `${w}%` }} className="h-3.5 bg-[#141f2e] rounded" />
+      <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded-xl w-1/2 md:w-1/3 mt-8" />
+      <div className="space-y-3">
+        {[80, 95, 75, 85].map((w, i) => (
+          <div key={i} style={{ width: `${w}%` }} className="h-4 bg-slate-200 dark:bg-slate-800 rounded-md" />
         ))}
       </div>
     </div>
   );
 }
 
-// Policy Modal
+// --- Modals & Banners ---
 function PolicyModal({ type, onClose }) {
   const isPrivacy = type === "privacy";
 
   const privacyContent = `# Privacy Policy
-*Effective Date: January 1, 2025 | Last Updated: 2025*
+*Effective Date: January 1, 2026 | Last Updated: 2026*
 
 ## 1. Introduction
-BideshPro ("we", "our", "the service") is an AI-powered scholarship information platform for Bangladeshi students. This Privacy Policy explains what data we collect, how we use it, and your rights.
-
-By using BideshPro, you agree to this Privacy Policy.
+BideshPro ("we", "our", "the service") is an AI-powered scholarship information platform for Bangladeshi students. This Privacy Policy explains what data we collect, how we use it, and your rights. By using BideshPro, you agree to this Privacy Policy.
 
 ## 2. What Data We Collect
 When you use BideshPro, the following data is **automatically collected**:
-
 - **IP Address** — to prevent abuse, enforce rate limits, and for analytics
 - **City, Region, Country** — geographic location derived from your IP address
-- **ISP / Organization name** — your internet service provider
-- **Approximate Coordinates (Lat/Lon)** — from IP geolocation (not GPS)
-- **Postal Code & Timezone** — from IP geolocation service
 - **Search queries** — what you search (country + level + background combinations)
-- **Anonymous session ID** — via Firebase Anonymous Authentication (no account needed)
-- **Usage analytics** — which countries/scholarships are most searched
+- **Anonymous session ID** — via Firebase Anonymous Authentication
 
 We do **NOT** collect: your name, email, phone number, or any personally identifiable information you don't explicitly provide.
 
-## 3. How We Use This Data
-- **Abuse prevention** — rate limiting and blocking malicious requests
-- **Service analytics** — understanding which scholarships Bangladeshi students need most
-- **Service improvement** — improving AI prompt quality based on real usage patterns
-- **Internal monitoring** — logs stored in our secure monitoring systems
-
-## 4. Third-Party Services
-BideshPro uses these third-party services, each governed by their own privacy policies:
-
-- **Groq AI** (groq.com) — processes your search queries to generate AI responses using Llama models
-- **Tavily Search API** (tavily.com) — real-time web search to find current scholarship information
-- **ipapi.co** — IP geolocation service that provides city/country/ISP data
-- **Firebase (Google)** — anonymous authentication and usage analytics storage
-- **Vercel / Render** — cloud hosting provider for the application
-
-## 5. Data Retention
-- Search logs and IP data: retained for up to **90 days**, then permanently deleted
-- Anonymous Firebase session data: retained for up to **1 year**
-- No personal accounts or profiles are ever created
-
-## 6. Data Security
-We implement industry-standard security measures including HTTPS encryption, API key protection, and rate limiting. However, no system is 100% secure.
-
-## 7. Your Rights
-You have the right to:
-- Use the service without creating any account
-- Know what data is collected (this policy)
-- Stop using the service at any time
-
-## 8. No Sale of Data
-We do **not** sell, rent, trade, or share your personal data with any third party for marketing purposes.
-
-## 9. Children's Privacy
-BideshPro is not directed at children under 13. We do not knowingly collect data from children under 13.
-
-## 10. Changes to This Policy
-We may update this Privacy Policy periodically. Continued use of the service after changes implies acceptance of the updated policy.
-
-## 11. Contact
+## 3. Contact
 For privacy concerns, contact the developer:
 - LinkedIn: [Rahat Ahmed](https://www.linkedin.com/in/RahatAhmedX)
 - Website: bidesh.pro.bd`;
 
   const termsContent = `# Terms & Conditions
-*Effective Date: January 1, 2025 | Last Updated: 2025*
+*Effective Date: January 1, 2026 | Last Updated: 2026*
 
 ## 1. Acceptance of Terms
 By accessing or using BideshPro ("the Service"), you agree to be bound by these Terms & Conditions. If you do not agree, please discontinue use immediately.
 
 ## 2. Description of Service
-BideshPro is an AI-powered scholarship information tool for Bangladeshi students seeking international study opportunities. The service uses Groq AI (Llama models) with real-time Tavily web search to provide study abroad information including scholarships, living costs, and program details.
+BideshPro is an AI-powered scholarship information tool for Bangladeshi students seeking international study opportunities. The service uses AI to gather and present study abroad information.
 
 ## 3. ⚠️ Accuracy Disclaimer (IMPORTANT)
-**All scholarship information provided by BideshPro is AI-generated from web searches and may be:**
-
-- **Outdated** — scholarship deadlines, amounts, and requirements change every academic year
-- **Incomplete** — not all available scholarships may be listed for any given country
-- **Inaccurate** — AI can misinterpret source material or hallucinate information
-
+**All scholarship information provided by BideshPro is AI-generated and may be:**
+- **Outdated** — scholarship deadlines, amounts change every year.
+- **Incomplete** — not all available scholarships may be listed.
 > **Always verify all information directly from official scholarship websites and embassies before making any application decisions.**
 
-BideshPro is a **research tool** — not an official scholarship portal.
+## 4. Limitation of Liability
+To the maximum extent permitted by law, BideshPro shall not be liable for any decisions made based on AI-generated content, missed deadlines, or rejected visas.
 
-## 4. No Professional Advice
-BideshPro does not provide:
-- Official legal or immigration advice
-- Guaranteed or verified scholarship application guidance
-- Professional financial planning advice
-- Official university admission counseling
-
-All content is for **informational and research purposes only**.
-
-## 5. Limitation of Liability
-To the maximum extent permitted by law, BideshPro and its developer(s) shall not be liable for:
-
-- Any decisions made based on AI-generated content
-- Missed scholarship application deadlines
-- Rejected visa or scholarship applications
-- Financial losses resulting from decisions based on this service
-- Service downtime or unavailability
-
-## 6. Acceptable Use
-You agree **NOT** to:
-- Use automated scripts, bots, or scrapers to abuse the service
-- Attempt to reverse-engineer, exploit, or attack the API
-- Use the service for any illegal or harmful purpose
-- Circumvent rate limiting measures
-- Share access credentials or API endpoints
-
-## 7. Service Availability
-BideshPro is provided **"as is"** without warranty of any kind. We do not guarantee:
-- 100% uptime or availability
-- Accuracy of any AI-generated response
-- Availability of any specific scholarship or program
-
-## 8. Intellectual Property
-- All BideshPro branding, design, and code are owned by the developer
-- AI-generated content is provided for personal, non-commercial, informational use
-- You may not reproduce, redistribute, or commercialize content from BideshPro
-
-## 9. Privacy
-Your use of BideshPro is also governed by our Privacy Policy. By using the service, you consent to the data practices described therein.
-
-## 10. Changes to Terms
-We reserve the right to modify these Terms at any time. Continued use of the service after changes constitutes acceptance of the new Terms.
-
-## 11. Governing Law
-These Terms shall be governed by and construed in accordance with the laws of Bangladesh.
-
-## 12. Contact
-- LinkedIn: [Rahat Ahmed](https://www.linkedin.com/in/RahatAhmedX)
-- Website: bidesh.pro.bd`;
+## 5. Contact
+- LinkedIn: [Rahat Ahmed](https://www.linkedin.com/in/RahatAhmedX)`;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-      <div className="bg-[#070b12] border border-[#1e3045] rounded-2xl w-full max-w-2xl max-h-[88vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#141f2e] flex-shrink-0">
-          <h2 className="text-lg font-bold text-white font-serif">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-2xl max-h-[88vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white font-serif">
             {isPrivacy ? "🔒 Privacy Policy" : "📋 Terms & Conditions"}
           </h2>
-          <button onClick={onClose} className="text-[#7a94ad] hover:text-white text-2xl leading-none transition-colors w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#141f2e]">✕</button>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-900 dark:hover:text-white text-2xl transition-colors w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
         </div>
-        <div className="overflow-y-auto px-6 py-5 flex-1 text-sm">
+        <div className="overflow-y-auto px-6 py-5 flex-1 text-sm custom-scrollbar">
           <MarkdownRenderer text={isPrivacy ? privacyContent : termsContent} />
         </div>
-        <div className="px-6 py-4 border-t border-[#141f2e] flex-shrink-0">
-          <button
-            onClick={onClose}
-            className="w-full bg-[#d4a843] hover:bg-[#e5b954] text-black font-bold py-2.5 rounded-xl transition-colors"
-          >
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex-shrink-0 bg-slate-50 dark:bg-slate-900/50 rounded-b-2xl">
+          <button onClick={onClose} className="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-3 rounded-xl transition-all shadow-md hover:shadow-lg">
             I Understand — Close
           </button>
         </div>
@@ -471,21 +371,17 @@ These Terms shall be governed by and construed in accordance with the laws of Ba
   );
 }
 
-// Consent Banner
 function ConsentBanner({ onAccept, onViewPolicy }) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] bg-[#070b12] border-t border-[#1e3045] shadow-2xl p-4">
-      <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="flex-1 text-sm text-[#7a94ad] leading-relaxed">
+    <div className="fixed bottom-0 left-0 right-0 z-[100] bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.5)] p-4 animate-in slide-in-from-bottom-5">
+      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="flex-1 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
           🍪 BideshPro collects anonymous usage data (IP, location, search queries) for analytics and service improvement.{" "}
-          <button onClick={onViewPolicy} className="text-[#4a9eff] underline hover:text-[#2ecc8a] transition-colors">
+          <button onClick={onViewPolicy} className="text-blue-600 dark:text-blue-400 font-semibold hover:underline transition-colors">
             Privacy Policy
           </button>
         </div>
-        <button
-          onClick={onAccept}
-          className="flex-shrink-0 bg-[#d4a843] hover:bg-[#e5b954] text-black font-bold px-6 py-2 rounded-xl text-sm transition-colors"
-        >
+        <button onClick={onAccept} className="w-full sm:w-auto flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-8 py-2.5 rounded-xl transition-all shadow-md">
           Accept & Continue
         </button>
       </div>
@@ -493,7 +389,7 @@ function ConsentBanner({ onAccept, onViewPolicy }) {
   );
 }
 
-// Countries
+// --- Data ---
 const COUNTRIES = [
   { name: "United States",   flag: "🇺🇸", hint: "Fulbright, Assistantships, OPT" },
   { name: "United Kingdom",  flag: "🇬🇧", hint: "Chevening, Commonwealth, Gates" },
@@ -523,41 +419,46 @@ const COUNTRIES = [
   { name: "New Zealand",     flag: "🇳🇿", hint: "NZAS, Commonwealth NZ" },
 ];
 
-// Main App
+// --- Main App Component ---
 function MainApp() {
+  const { theme, toggleTheme }              = useTheme();
   const [view, setView]                     = useState(VIEWS.COUNTRIES);
   const [language, setLanguage]             = useState("English");
   const [userAuth, setUserAuth]             = useState(null);
   const [userInfo, setUserInfo]             = useState(null);
   const isOffline                           = useOfflineStatus();
 
+  // Filters State
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [level, setLevel]                   = useState("all");
   const [background, setBackground]         = useState("all");
+  const [bachelorMajor, setBachelorMajor]   = useState(""); // NEW: For Masters Background
   const [countrySearch, setCountrySearch]   = useState("");
   const debouncedSearch                     = useDebounce(countrySearch, 280);
 
+  // Results State
   const [resultText, setResultText]         = useState(null);
   const [loading, setLoading]               = useState(false);
-  const [isSlowLoading, setIsSlowLoading]   = useState(false); // UX indicator
+  const [isSlowLoading, setIsSlowLoading]   = useState(false);
   const [error, setError]                   = useState(null);
   const [copied, setCopied]                 = useState(false);
 
+  // Ask AI State
   const [globalQ, setGlobalQ]               = useState("");
   const [globalResult, setGlobalResult]     = useState(null);
   const [history, setHistory]               = useState([]);
   const [analyticsData, setAnalyticsData]   = useState([]);
 
+  // Modals
   const [policyModal, setPolicyModal]       = useState(null); 
   const [consentGiven, setConsentGiven]     = useState(() => {
-    try { return localStorage.getItem("bideshpro_consent") === "true"; }
-    catch { return false; }
+    try { return localStorage.getItem("bideshpro_consent") === "true"; } catch { return false; }
   });
 
   const resultRef = useRef(null);
   const PERSIST_KEY = "bideshpro_last_result";
 
-  // Session restore
+  // Load Session
   useEffect(() => {
     try {
       const s = sessionStorage.getItem("bideshpro_state");
@@ -567,6 +468,7 @@ function MainApp() {
         if (d.selectedCountry) setSelectedCountry(d.selectedCountry);
         if (d.level)           setLevel(d.level);
         if (d.background)      setBackground(d.background);
+        if (d.bachelorMajor)   setBachelorMajor(d.bachelorMajor);
         if (d.language)        setLanguage(d.language);
       }
       const saved = localStorage.getItem(PERSIST_KEY);
@@ -580,23 +482,20 @@ function MainApp() {
     } catch (_) {}
   }, []);
 
-  // Session save (view/filters/language)
+  // Save Session
   useEffect(() => {
     try {
-      sessionStorage.setItem(
-        "bideshpro_state",
-        JSON.stringify({ view, selectedCountry, level, background, language })
-      );
+      sessionStorage.setItem("bideshpro_state", JSON.stringify({ view, selectedCountry, level, background, bachelorMajor, language }));
     } catch (_) {}
-  }, [view, selectedCountry, level, background, language]);
+  }, [view, selectedCountry, level, background, bachelorMajor, language]);
 
-  // Persist results to localStorage
+  // Persist Results
   useEffect(() => {
     if (!resultText && !globalResult) return;
     try {
       const toSave = {};
-      if (resultText   && resultText.length   < 100_000) toSave.resultText   = resultText;
-      if (globalResult && globalResult.length < 100_000) toSave.globalResult = globalResult;
+      if (resultText && resultText.length < 100000) toSave.resultText = resultText;
+      if (globalResult && globalResult.length < 100000) toSave.globalResult = globalResult;
       localStorage.setItem(PERSIST_KEY, JSON.stringify(toSave));
     } catch (_) {
       try { localStorage.removeItem(PERSIST_KEY); } catch (_) {}
@@ -617,10 +516,10 @@ function MainApp() {
     return onAuthStateChanged(auth, setUserAuth);
   }, []);
 
-  // IP Details
+  // Init IP
   useEffect(() => { fetchUserIPDetails().then(setUserInfo); }, []);
 
-  // Analytics listener
+  // Analytics
   useEffect(() => {
     if (!userAuth || !db || !appId) return;
     const ref = collection(db, "artifacts", appId, "public", "data", "search_analytics");
@@ -633,19 +532,21 @@ function MainApp() {
     return () => unsub();
   }, [userAuth]);
 
-  // Auto-scroll to result
+  // Scroll to results
   useEffect(() => {
-    if (resultText && resultRef.current)
-      resultRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [resultText]);
+    if (resultText && resultRef.current && view === VIEWS.RESULT) {
+      setTimeout(() => {
+        resultRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [resultText, view]);
 
-  // Helpers
-  const saveHistory = useCallback((q) => {
-    setHistory((prev) => {
-      const updated = [q, ...prev.filter((x) => x !== q)].slice(0, 6);
-      try { localStorage.setItem("bideshpro_history", JSON.stringify(updated)); } catch (_) {}
-      return updated;
-    });
+  // Actions
+  const handleCopy = useCallback(async (text) => {
+    if (await copyToClipboard(text)) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
   }, []);
 
   const updateAnalytics = useCallback(async (name) => {
@@ -658,114 +559,100 @@ function MainApp() {
     } catch (_) {}
   }, [userAuth]);
 
-  const handleCopy = useCallback(async (text) => {
-    if (await copyToClipboard(text)) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    }
+  const saveHistory = useCallback((q) => {
+    setHistory((prev) => {
+      const updated = [q, ...prev.filter((x) => x !== q)].slice(0, 6);
+      try { localStorage.setItem("bideshpro_history", JSON.stringify(updated)); } catch (_) {}
+      return updated;
+    });
   }, []);
 
-  const handleConsent = useCallback(() => {
-    try { localStorage.setItem("bideshpro_consent", "true"); } catch (_) {}
-    setConsentGiven(true);
-  }, []);
-
-  const filteredCountries = useMemo(() => {
-    const q = debouncedSearch.toLowerCase();
-    if (!q) return COUNTRIES;
-    return COUNTRIES.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.hint.toLowerCase().includes(q)
-    );
-  }, [debouncedSearch]);
-
-
-  const buildPrompt = useCallback((country, lvl, bg) => {
+  // AI Prompt Builder (Massively Upgraded)
+  const buildPrompt = useCallback((country, lvl, bg, major) => {
     const lvlText = lvl === "all" ? "All Levels (Bachelor, Master's & PhD)" : lvl.charAt(0).toUpperCase() + lvl.slice(1);
-    const bgText  = bg  === "all" ? "All Backgrounds (Science, Arts, Commerce)" : bg.charAt(0).toUpperCase() + bg.slice(1);
+    const bgText  = bg  === "all" ? "All Backgrounds" : bg.charAt(0).toUpperCase() + bg.slice(1);
+    const langNote = language === "Bengali" ? "You MUST write the entire response in Bengali language." : "Write the response in English.";
 
-    const prompt = `You are a highly experienced international scholarship consultant for Bangladeshi students.
+    let profileContext = `Degree Level Selected: ${lvlText}\nBackground Selected: ${bgText}`;
+    if (lvl === "masters" && major) {
+      profileContext += `\nApplicant's Bachelor Major: ${major}`;
+    }
 
-🎯 Country: ${country.name}
-🎓 Degree: ${lvlText}
-📚 Background: ${bgText}
-🌐 Language: ${language}
+    const prompt = `You are an elite, highly accurate study abroad consultant for Bangladeshi students. 
+${langNote}
+
+🎯 APPLICANT PROFILE:
+- Target Country: ${country.name}
+- ${profileContext}
 
 ⚠️ STRICT RULES (DO NOT VIOLATE):
-1. EXACT MATCH: Ensure universities ACTUALLY offer "${bgText}" for "${lvlText}". Do not suggest purely Tech/Engg universities if background is Arts/Commerce.
-2. LATEST QUOTAS: State if there is a specific Bangladesh quota (e.g. 500 seats) or if it's globally open.
-3. CURRENT DEADLINES: Give exact dates for the CURRENT academic year. If unpublished, use last year's dates and note "(Based on last year's cycle — verify officially)". Do not write "Varies".
-4. NO BROKEN LINKS (CRITICAL): Do NOT guess or hallucinate deep URLs. If you cannot verify the exact application portal link from the search results, provide the MAIN homepage of the university only.
+1. STRICT TARGETING: ONLY provide information relevant to "${lvlText}" and "${bgText}". Do NOT give Bachelor's info if Master's is selected.
+2. GENUINE LINKS ONLY: Provide real, working URLs for scholarships and universities. Do NOT hallucinate links.
+3. ARTS TO BUSINESS: If background is "Arts", explicitly mention how they can transition into Business/Management degrees (MBA, BBA, etc.) alongside Arts degrees.
+4. ADMISSION ACCURACY: Mention SSC/HSC GPA requirements out of 5.0 scale, and Bachelor CGPA out of 4.0 scale. Include exact IELTS/SAT/GRE requirements.
+5. FINANCIAL CALCULATOR: You MUST include the exact markdown table for monthly savings calculation.
 
-═══════════════════════════════════
-📋 FORMAT (Use these exact headers):
-═══════════════════════════════════
+📋 REQUIRED MARKDOWN FORMAT (Follow this exact structure with Emojis):
 
-## 🎓 Scholarships in ${country.name}
-(List 2-3 highly relevant scholarships)
+## 🎓 Top Scholarships for ${lvlText} in ${country.name}
+*(List 2-3 GENUINE scholarships with live links)*
+- **[Official Scholarship Name](REAL_URL)**
+  - 💰 **Coverage:** (Tuition, living stipend in local currency & USD)
+  - 📅 **Deadline (2026 Cycle):** (Exact dates or based on last cycle)
+  - ✅ **Eligibility:** ...
 
-### 🏆 [Official Scholarship Name]
-- 💰 **Coverage:** (Tuition, stipend in local currency & USD, etc.)
-- 📅 **Deadline:** (Exact dates)
-- 🗓 **Intake:** (Semester/month)
-- ⏳ **Duration:** (Years)
-- ✅ **Eligibility:** Age limit, GPA (out of 5.0) / CGPA (out of 4.0), accepted backgrounds.
-- 📄 **Required Documents:** (List)
-- 🗣 **Language:** (IELTS/TOEFL requirements)
-- 🇧🇩 **Bangladesh Quota:** (Exact seats or "Global")
-- 🔗 **Official Site:** [Name](REAL_URL_ONLY)
-- 📝 **Apply Here:** [Portal](REAL_URL_ONLY)
+## 📝 Admission Requirements
+- **Academic:** (GPA 5.0 scale for SSC/HSC, CGPA 4.0 scale for Bachelors)
+- **Standardized Tests:** (IELTS, TOEFL, SAT, GRE/GMAT)
+- **Documents Needed:** ...
 
----
+## 📚 Available Programs & Pathways
+*(Suggest top programs based on the applicant's background: ${bgText} ${major ? `and major: ${major}` : ""})*
 
-## 📚 Available Programs (${bgText} at ${lvlText})
-(Top universities offering ${bgText})
+## 💼 Part-Time Jobs & Earning Potential
+- ⏳ **Allowed Hours:** (e.g., 20 hrs/week)
+- 💵 **Avg Hourly Wage:** (Local currency and BDT)
 
-## 🗣 Language of Instruction
-(English vs local language)
-
-## 💼 Part-Time Jobs
-- Legal hours/week: ...
-- Avg hourly wage: ... (Local + BDT)
-- Monthly earning potential: ...
-
-## 🏠 Monthly Living Expenses Breakdown
-| Category | Cost (Local) | ≈ BDT |
-|----------|--------------|-------|
-| Accommodation | ... | ... |
-| Food | ... | ... |
-| Transport | ... | ... |
-| Total | ... | ... |
-
-## 📊 Financial Feasibility
-(Scholarship + part-time − living costs = ?)
+## 🧮 Financial Calculator (Monthly Estimate)
+*(Provide realistic estimated figures for 1 month)*
+| Category | Cost/Earning (Local Currency) | Approx BDT |
+|----------|-------------------------------|------------|
+| 📈 Earning (Part-time) | ... | ... |
+| 🎁 Scholarship/Grant | ... | ... |
+| ➖ Tuition Fees (Monthly avg) | ... | ... |
+| ➖ Living Expenses | ... | ... |
+| **💰 Estimated Savings/Deficit** | **...** | **...** |
+*(Calculation Formula: Earning + Scholarship - Tuition - Living)*
 
 ## ✅ Pros of Studying in ${country.name}
-## ⚠️ Cons & Challenges
-## 🔗 All Important Links
-| Resource | Link (REAL_URL_ONLY) |
-|----------|----------------------|
-| Embassy | ... |
-| Visa Portal | ... |`;
+## ❌ Cons & Challenges
+## 🔗 Important Contacts & Links
+*(List Embassy, Visa Portal, and Helpdesks. Provide Public Emails and Phone Numbers if available)*
+- [Resource Name](REAL_URL) - Email: ... / Phone: ...
+`;
 
-    const tavilyQuery = `${country.name} scholarship Bangladeshi students ${new Date().getFullYear()} ${lvl === "all" ? "" : lvl} deadline eligibility`.trim();
+    const searchKeyword = lvl === "masters" && major ? major : bg;
+    const tavilyQuery = `${country.name} university scholarship ${searchKeyword} ${lvl} Bangladeshi students 2026 requirements`.trim();
 
     return { prompt, tavilyQuery };
   }, [language]);
 
-  // Fetch scholarship
-  const fetchScholarship = useCallback(async (country, lvl, bg) => {
+  // Fetch Action
+  const fetchScholarship = useCallback(async (country, lvl, bg, major) => {
     if (isOffline) return setError("You are offline. Please check your internet connection.");
+    
+    // Prevent fetching if Masters is selected but Major is empty (only if we want to enforce it, let's allow it but encourage it)
     setLoading(true); setError(null); setResultText(null); setCopied(false); setView(VIEWS.RESULT);
     setIsSlowLoading(false);
 
-    const cacheKey = `C_${country.name}_L_${lvl}_B_${bg}_${language}`;
+    const cacheKey = `C_${country.name}_L_${lvl}_B_${bg}_M_${major}_${language}`;
     const cached = CacheService.get(cacheKey);
     if (cached) { setResultText(cached); setLoading(false); return; }
 
     const slowTimer = setTimeout(() => setIsSlowLoading(true), 8000);
 
     try {
-      const { prompt, tavilyQuery } = buildPrompt(country, lvl, bg);
+      const { prompt, tavilyQuery } = buildPrompt(country, lvl, bg, major);
       const text = await ApiService.fetch("https://studyabroadportal.onrender.com/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -787,7 +674,7 @@ function MainApp() {
     }
   }, [userInfo, updateAnalytics, isOffline, language, buildPrompt]);
 
-  // Global Ask
+  // Global AI Ask
   const handleGlobalAsk = useCallback(async (qOverride) => {
     const q = typeof qOverride === "string" ? qOverride : globalQ;
     if (!q.trim() || isOffline) return;
@@ -799,25 +686,19 @@ function MainApp() {
     const cached = CacheService.get(cacheKey);
     if (cached) { setGlobalResult(cached); setLoading(false); saveHistory(q); return; }
 
-    const prompt = `You are an expert international scholarship and study abroad consultant for Bangladeshi students.
+    const langNote = language === "Bengali" ? "Answer entirely in Bengali." : "Answer in English.";
+    const prompt = `You are an expert international scholarship consultant for Bangladeshi students. ${langNote}
 
-Answer comprehensively using the provided web search results as your primary source:
-
-"${q}"
+Answer comprehensively based ONLY on the provided web search results.
+User Query: "${q}"
 
 ⚠️ Rules:
-- Write entirely in ${language}
-- Use ONLY verified facts from the search results provided.
-- Include REAL, working URLs ONLY. Do not hallucinate links. If unsure, provide the main website homepage.
-- Include Bangladesh-specific quota/seat info where available.
+- Include REAL, working URLs ONLY. Do not hallucinate links.
+- Focus on 2026 academic cycle deadlines and requirements.
 - Mention SSC/HSC GPA (out of 5.0) and CGPA (out of 4.0).
-- Format with clear headers and bullet points.
-- Include official deadlines (current academic year).
+- Format beautifully with markdown headers and emojis.`;
 
-Format response with emojis and clear sections. End with a "🔗 Useful Links" section (REAL URLs ONLY).`;
-
-    const tavilyQuery = `${q.trim()} Bangladesh students ${new Date().getFullYear()}`;
-
+    const tavilyQuery = `${q.trim()} Bangladesh students 2026`;
     const slowTimer = setTimeout(() => setIsSlowLoading(true), 8000);
 
     try {
@@ -838,6 +719,12 @@ Format response with emojis and clear sections. End with a "🔗 Useful Links" s
     }
   }, [globalQ, userInfo, isOffline, language, saveHistory]);
 
+  const filteredCountries = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    if (!q) return COUNTRIES;
+    return COUNTRIES.filter((c) => c.name.toLowerCase().includes(q) || c.hint.toLowerCase().includes(q));
+  }, [debouncedSearch]);
+
   const getTrend = useCallback((name) => {
     const idx = analyticsData.findIndex((a) => a.id === name);
     if (idx === 0) return "🔥";
@@ -846,308 +733,412 @@ Format response with emojis and clear sections. End with a "🔗 Useful Links" s
     return null;
   }, [analyticsData]);
 
-  // Render
+
+  // --- Render ---
   return (
-    <div className="min-h-screen bg-[#03050a] text-[#dde6f0] font-sans selection:bg-[#d4a843] selection:text-black pb-20">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#030712] text-slate-800 dark:text-slate-200 font-sans selection:bg-amber-500 selection:text-white transition-colors duration-300 pb-20">
+      
+      {/* Offline Banner */}
       {isOffline && (
-        <div className="bg-red-600 text-white text-center py-1.5 text-sm font-semibold tracking-wide">
-          ⚡ You are offline — results from cache only
+        <div className="bg-red-500 text-white text-center py-2 text-sm font-bold tracking-wide shadow-md">
+          ⚡ You are offline — displaying cached results only
         </div>
       )}
 
       {/* ── Header ── */}
-      <header className="sticky top-0 z-50 bg-[#050810]/95 backdrop-blur-md border-b border-[#141f2e]">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+      <header className="sticky top-0 z-50 bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-300">
+        <div className="max-w-7xl mx-auto px-4 h-16 sm:h-20 flex items-center justify-between gap-3">
+          
           {/* Logo */}
-          <div
-            className="flex items-center gap-2 sm:gap-3 cursor-pointer flex-shrink-0"
-            onClick={() => { setView(VIEWS.COUNTRIES); setSelectedCountry(null); }}
-          >
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#d4a843] to-[#8a6b24] flex items-center justify-center text-lg sm:text-xl shadow-lg flex-shrink-0">🎓</div>
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => { setView(VIEWS.COUNTRIES); setSelectedCountry(null); }}>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-xl sm:text-2xl shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform flex-shrink-0">
+              🎓
+            </div>
             <div className="flex flex-col">
-              <h1 className="text-lg sm:text-xl font-bold leading-tight font-serif tracking-wide">
-                <span className="text-white">Bidesh</span><span className="text-[#d4a843]">Pro</span>
+              <h1 className="text-xl sm:text-2xl font-bold leading-tight font-serif tracking-tight text-slate-900 dark:text-white">
+                Bidesh<span className="text-amber-500">Pro</span>
               </h1>
-              <p className="text-[8px] sm:text-[10px] text-[#7a94ad] tracking-widest font-semibold uppercase mt-0.5 flex items-center">
-                <span className="bg-[#d4a843] text-black px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-bold mr-1 sm:mr-1.5">BETA</span>
-                Developed by{" "}
-                <a
-                  href="https://www.linkedin.com/in/RahatAhmedX"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#4a9eff] hover:underline ml-0.5"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Rahat
-                </a>
+              <p className="text-[9px] sm:text-[11px] text-slate-500 dark:text-slate-400 tracking-widest font-bold uppercase mt-0.5 flex items-center">
+                <span className="bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-bold mr-1.5 border border-amber-200 dark:border-amber-500/30">BETA</span>
+                by <a href="https://www.linkedin.com/in/RahatAhmedX" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline ml-1" onClick={(e) => e.stopPropagation()}>Rahat</a>
               </p>
             </div>
           </div>
 
-          {/* Nav */}
-          <div className="flex items-center gap-1 sm:gap-2">
-            <div className="flex bg-[#141f2e] rounded-lg p-0.5 border border-[#1e3045]">
+          {/* Navigation & Controls */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Theme Toggle */}
+            <button onClick={toggleTheme} className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors focus:outline-none">
+              {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+            </button>
+
+            {/* Language Toggle */}
+            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
               {["English", "Bengali"].map((lang) => (
                 <button
                   key={lang}
                   onClick={() => setLanguage(lang)}
-                  className={`px-2 py-1 sm:px-2.5 text-[10px] sm:text-[11px] font-bold rounded-md transition-all ${
-                    language === lang ? "bg-[#d4a843] text-black" : "text-[#7a94ad] hover:text-white"
+                  className={`px-2.5 py-1 text-[10px] sm:text-xs font-bold rounded-md transition-all ${
+                    language === lang ? "bg-white dark:bg-slate-600 text-amber-600 dark:text-amber-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                   }`}
                 >
                   {lang === "English" ? "EN" : "বাং"}
                 </button>
               ))}
             </div>
-            {[
-              { v: VIEWS.COUNTRIES, icon: "🌍", label: "Countries" },
-              { v: VIEWS.SEARCH,    icon: "🔍", label: "Ask AI"   },
-            ].map(({ v, icon, label }) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-                  view === v || (v === VIEWS.COUNTRIES && view === VIEWS.RESULT)
-                    ? "bg-[#d4a843] text-black shadow-sm"
-                    : "text-[#7a94ad] hover:text-white hover:bg-[#141f2e]"
-                }`}
-              >
-                <span>{icon}</span>
-                <span className="hidden sm:inline ml-1">{label}</span>
-              </button>
-            ))}
+
+            {/* View Tabs */}
+            <div className="hidden md:flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
+              {[
+                { v: VIEWS.COUNTRIES, icon: "🌍", label: "Countries" },
+                { v: VIEWS.SEARCH,    icon: "🔍", label: "Ask AI"   },
+              ].map(({ v, icon, label }) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 ${
+                    view === v || (v === VIEWS.COUNTRIES && view === VIEWS.RESULT)
+                      ? "bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                >
+                  <span>{icon}</span> {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Mobile Nav */}
+            <div className="flex md:hidden gap-1">
+               <button onClick={() => setView(VIEWS.COUNTRIES)} className={`p-2 rounded-lg ${view === VIEWS.COUNTRIES || view === VIEWS.RESULT ? "bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400" : "text-slate-500"}`}>🌍</button>
+               <button onClick={() => setView(VIEWS.SEARCH)} className={`p-2 rounded-lg ${view === VIEWS.SEARCH ? "bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400" : "text-slate-500"}`}>🔍</button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* ── Main ── */}
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      {/* ── Main Content ── */}
+      <main className="max-w-7xl mx-auto px-4 py-8 sm:py-12">
 
-        {/* ── COUNTRIES ── */}
+        {/* ── COUNTRIES VIEW ── */}
         {view === VIEWS.COUNTRIES && (
-          <div className="animate-in fade-in duration-300">
-            <div className="mb-10">
-              <h2 className="text-3xl md:text-5xl font-serif font-bold text-white mb-3 leading-tight">
-                Study Abroad Scholarships<br />
-                <span className="text-[#d4a843]">for Bangladeshi Students</span>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+            {/* Hero Title */}
+            <div className="mb-10 text-center md:text-left">
+              <h2 className="text-4xl md:text-6xl font-serif font-extrabold text-slate-900 dark:text-white mb-4 leading-[1.1]">
+                Study Abroad in <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">2026</span><br/>
+                <span className="text-2xl md:text-4xl text-slate-600 dark:text-slate-300 font-sans font-bold">Scholarship Portal for Bangladesh</span>
               </h2>
+              <p className="text-slate-500 dark:text-slate-400 max-w-2xl text-sm md:text-base leading-relaxed">
+                Select a country, define your academic background, and let AI generate a highly accurate, customized guide including admission requirements, financial calculators, and genuine application links.
+              </p>
             </div>
 
+            {/* Trending */}
             {analyticsData.length > 0 && (
-              <div className="flex items-center gap-2 mb-5 flex-wrap">
-                <span className="text-xs text-[#3d5269] font-semibold uppercase tracking-wider">🔥 Trending:</span>
+              <div className="flex items-center gap-2 mb-8 flex-wrap justify-center md:justify-start">
+                <span className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">🔥 Trending</span>
                 {analyticsData.slice(0, 5).map((a) => (
                   <button
                     key={a.id}
                     onClick={() => {
                       const c = COUNTRIES.find((x) => x.name === a.id);
-                      if (c) { setSelectedCountry(c); fetchScholarship(c, level, background); }
+                      if (c) { setSelectedCountry(c); fetchScholarship(c, level, background, bachelorMajor); }
                     }}
-                    className="text-xs bg-[#141f2e] hover:bg-[#1e3045] text-[#d4a843] px-3 py-1 rounded-full border border-[#1e3045] transition-colors"
+                    className="text-xs bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md font-medium"
                   >
                     {COUNTRIES.find((c) => c.name === a.id)?.flag || "🌍"} {a.id}
-                    <span className="ml-1 text-[#3d5269]">×{a.count}</span>
                   </button>
                 ))}
               </div>
             )}
 
-            <div className="bg-[#070b12] border border-[#141f2e] rounded-2xl p-5 mb-8 flex flex-col md:flex-row gap-5">
+            {/* Filters Dashboard */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 mb-10 shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col xl:flex-row gap-8 transition-colors duration-300">
+              
+              {/* Search Box */}
               <div className="flex-1">
-                <label className="block text-xs font-bold text-[#3d5269] uppercase tracking-wider mb-2">Search Country</label>
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                  Search Destination
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Germany, Japan..."
+                  placeholder="e.g. Germany, Japan, Canada..."
                   value={countrySearch}
                   onChange={(e) => setCountrySearch(e.target.value)}
-                  className="w-full bg-[#0b1119] border border-[#141f2e] focus:border-[#d4a843] rounded-xl px-4 py-3 text-white outline-none transition-all placeholder-[#3d5269] text-sm"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 focus:border-amber-500 dark:focus:border-amber-500 rounded-2xl px-5 py-4 text-slate-900 dark:text-white outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 font-medium text-lg shadow-inner"
                 />
               </div>
-              <div className="flex flex-col gap-3">
+
+              <div className="w-px bg-slate-200 dark:bg-slate-800 hidden xl:block"></div>
+
+              {/* Dynamic Filters */}
+              <div className="flex-1 flex flex-col gap-6">
+                
+                {/* Level */}
                 <div>
-                  <label className="block text-xs font-bold text-[#3d5269] uppercase tracking-wider mb-2">Degree Level</label>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">Degree Level</label>
                   <div className="flex flex-wrap gap-2">
-                    {["all","bachelor","masters","phd"].map((l) => (
+                    {["all", "bachelor", "masters", "phd"].map((l) => (
                       <button key={l} onClick={() => setLevel(l)}
-                        className={`px-4 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${level === l ? "bg-[#d4a843] text-black" : "bg-[#141f2e]/60 text-[#7a94ad] hover:bg-[#141f2e]"}`}>
-                        {l === "all" ? "All Levels" : l === "phd" ? "PhD" : l.charAt(0).toUpperCase() + l.slice(1)}
+                        className={`px-5 py-2 rounded-xl text-sm font-bold capitalize transition-all ${
+                          level === l 
+                            ? "bg-amber-500 text-slate-900 shadow-md shadow-amber-500/20 scale-105" 
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                        }`}>
+                        {l === "all" ? "Any Level" : l === "phd" ? "PhD" : l.charAt(0).toUpperCase() + l.slice(1)}
                       </button>
                     ))}
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#3d5269] uppercase tracking-wider mb-2">Background</label>
-                  <div className="flex flex-wrap gap-2">
-                    {["all","science","arts","commerce"].map((bg) => (
-                      <button key={bg} onClick={() => setBackground(bg)}
-                        className={`px-4 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${background === bg ? "bg-[#d4a843] text-black" : "bg-[#141f2e]/60 text-[#7a94ad] hover:bg-[#141f2e]"}`}>
-                        {bg === "all" ? "All" : bg.charAt(0).toUpperCase() + bg.slice(1)}
-                      </button>
-                    ))}
+
+                {/* Background */}
+                <div className="flex flex-col sm:flex-row gap-6">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">Background Area</label>
+                    <div className="flex flex-wrap gap-2">
+                      {["all", "science", "arts", "commerce"].map((bg) => (
+                        <button key={bg} onClick={() => setBackground(bg)}
+                          className={`px-4 py-2 rounded-xl text-sm font-bold capitalize transition-all ${
+                            background === bg 
+                              ? "bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 shadow-md" 
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                          }`}>
+                          {bg === "all" ? "Any" : bg.charAt(0).toUpperCase() + bg.slice(1)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+
+                  {/* Contextual Master's Field */}
+                  {level === "masters" && (
+                    <div className="flex-1 animate-in fade-in slide-in-from-right-4 duration-300">
+                      <label className="block text-xs font-bold text-amber-600 dark:text-amber-500 uppercase tracking-widest mb-3">
+                        ✏️ Bachelor's Major
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. BBA, CSE, English..."
+                        value={bachelorMajor}
+                        onChange={(e) => setBachelorMajor(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-amber-300 dark:border-amber-700 focus:border-amber-500 dark:focus:border-amber-500 rounded-xl px-4 py-2 text-slate-900 dark:text-white outline-none transition-all placeholder-slate-400 text-sm shadow-inner"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {/* Country Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
               {filteredCountries.map((c) => {
                 const trend = getTrend(c.name);
                 return (
                   <div
                     key={c.name}
                     tabIndex={0} role="button"
-                    onClick={() => { setSelectedCountry(c); fetchScholarship(c, level, background); }}
-                    onKeyDown={(e) => { if (e.key === "Enter") { setSelectedCountry(c); fetchScholarship(c, level, background); }}}
-                    className="relative bg-[#0b1119] border border-[#141f2e] hover:border-[#d4a843]/60 rounded-2xl p-4 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-[#d4a843]/5 focus:outline-none focus:border-[#d4a843] group"
+                    onClick={() => { setSelectedCountry(c); fetchScholarship(c, level, background, bachelorMajor); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { setSelectedCountry(c); fetchScholarship(c, level, background, bachelorMajor); }}}
+                    className="group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-400 dark:hover:border-amber-500 rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-amber-500/10 focus:outline-none focus:ring-2 focus:ring-amber-500 flex flex-col items-center text-center overflow-hidden"
                   >
-                    {trend && <span className="absolute top-2 right-2 text-xs">{trend}</span>}
-                    <div className="text-3xl mb-2 group-hover:scale-110 transition-transform origin-left">{c.flag}</div>
-                    <h3 className="font-bold text-white text-sm mb-1 leading-tight">{c.name}</h3>
-                    <p className="text-[10px] text-[#3d5269] leading-tight line-clamp-2">{c.hint}</p>
+                    {trend && <span className="absolute top-2 right-3 text-sm bg-white/80 dark:bg-slate-900/80 backdrop-blur rounded-full px-1 py-0.5">{trend}</span>}
+                    <div className="text-4xl sm:text-5xl mb-3 group-hover:scale-110 transition-transform duration-300 drop-shadow-md">{c.flag}</div>
+                    <h3 className="font-bold text-slate-900 dark:text-white text-base mb-1.5">{c.name}</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug line-clamp-2 px-1">{c.hint}</p>
+                    <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-amber-400 to-amber-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
                   </div>
                 );
               })}
             </div>
+            {filteredCountries.length === 0 && (
+              <div className="text-center py-20 text-slate-500 dark:text-slate-400 font-medium">
+                No countries found matching "{countrySearch}". Try another destination.
+              </div>
+            )}
           </div>
         )}
 
-        {/* ── RESULT ── */}
+        {/* ── RESULT VIEW ── */}
         {view === VIEWS.RESULT && (
-          <div className="animate-in fade-in max-w-4xl mx-auto">
-            <div className="flex items-center gap-3 mb-6 flex-wrap">
-              <button onClick={() => setView(VIEWS.COUNTRIES)} className="flex items-center gap-1 text-[#7a94ad] hover:text-white px-3 py-1.5 rounded-lg hover:bg-[#141f2e] transition-all text-sm">← Back</button>
-              {selectedCountry && (
-                <div className="flex items-center gap-2">
-                  <span className="text-3xl">{selectedCountry.flag}</span>
-                  <span className="font-bold text-white text-lg font-serif">{selectedCountry.name}</span>
-                </div>
-              )}
-              <div className="ml-auto flex gap-1.5 flex-wrap">
-                {["all","bachelor","masters","phd"].map((l) => (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto" ref={resultRef}>
+            
+            {/* Navigation Bar inside Result */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+              <button onClick={() => setView(VIEWS.COUNTRIES)} className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all font-bold text-sm shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                Back to Search
+              </button>
+              
+              <div className="flex flex-wrap gap-2">
+                 {["all","bachelor","masters","phd"].map((l) => (
                   <button key={l}
-                    onClick={() => { setLevel(l); fetchScholarship(selectedCountry, l, background); }}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-all ${level === l ? "bg-[#d4a843] text-black" : "bg-[#141f2e] text-[#7a94ad] hover:text-white"}`}>
-                    {l === "all" ? "All" : l === "phd" ? "PhD" : l.charAt(0).toUpperCase() + l.slice(1)}
+                    onClick={() => { setLevel(l); fetchScholarship(selectedCountry, l, background, bachelorMajor); }}
+                    className={`px-4 py-1.5 rounded-full text-xs font-bold capitalize transition-all border ${
+                      level === l 
+                        ? "bg-amber-500 border-amber-500 text-slate-900 shadow-md" 
+                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    }`}>
+                    {l === "all" ? "Any Level" : l === "phd" ? "PhD" : l.charAt(0).toUpperCase() + l.slice(1)}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div ref={resultRef} className="bg-[#070b12] border border-[#141f2e] rounded-3xl p-6 md:p-10 shadow-2xl">
-              <div className="flex flex-col md:flex-row justify-between gap-5 mb-8 pb-6 border-b border-[#141f2e]">
-                <div className="flex items-center gap-4">
-                  <span className="text-5xl">{selectedCountry?.flag}</span>
+            {/* Document Card */}
+            <div className="bg-white dark:bg-[#0b1120] border border-slate-200 dark:border-slate-800 rounded-[2rem] p-6 sm:p-10 md:p-12 shadow-2xl shadow-slate-200/50 dark:shadow-none transition-colors duration-300">
+              
+              {/* Document Header */}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10 pb-8 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-5">
+                  <div className="text-6xl md:text-7xl drop-shadow-xl">{selectedCountry?.flag}</div>
                   <div>
-                    <h2 className="text-2xl md:text-3xl font-serif font-bold text-white">{selectedCountry?.name}</h2>
-                    <p className="text-xs text-[#d4a843] font-medium tracking-wide mt-1">
-                      AI VERIFIED REPORT · Level: {level.toUpperCase()} · Background: {background.toUpperCase()}
-                    </p>
+                    <h2 className="text-3xl md:text-5xl font-serif font-extrabold text-slate-900 dark:text-white leading-tight mb-2">
+                      {selectedCountry?.name}
+                    </h2>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-3 py-1 rounded-md text-xs font-bold border border-emerald-200 dark:border-emerald-800/50">
+                        ✓ AI VERIFIED (2026)
+                      </span>
+                      <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-md text-xs font-bold border border-slate-200 dark:border-slate-700 uppercase">
+                        {level}
+                      </span>
+                      <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-md text-xs font-bold border border-slate-200 dark:border-slate-700 uppercase">
+                        {background} {level === 'masters' && bachelorMajor ? `(${bachelorMajor})` : ''}
+                      </span>
+                    </div>
                   </div>
                 </div>
+                
                 {resultText && !loading && (
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={() => handleCopy(resultText)} className="px-4 py-2 bg-[#141f2e] hover:bg-[#1e3045] text-white rounded-xl text-sm font-medium transition-all">
-                      {copied ? "✅ Copied!" : "📋 Copy"}
-                    </button>
-                  </div>
+                  <button onClick={() => handleCopy(resultText)} className="group flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white rounded-xl text-sm font-bold transition-all border border-slate-200 dark:border-slate-700 shadow-sm">
+                    {copied ? "✅ Copied" : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                        Copy Report
+                      </>
+                    )}
+                  </button>
                 )}
               </div>
 
+              {/* Status & Content */}
               {loading ? (
-                <div className="text-center py-10">
-                  <div className="inline-block text-5xl animate-spin mb-5">🌍</div>
+                <div className="text-center py-16 animate-in fade-in">
+                  <div className="relative inline-flex items-center justify-center w-24 h-24 mb-8">
+                    <div className="absolute inset-0 border-4 border-amber-200 dark:border-slate-800 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-amber-500 rounded-full border-t-transparent animate-spin"></div>
+                    <span className="text-4xl absolute">🌍</span>
+                  </div>
                   
                   {isSlowLoading ? (
-                    <>
-                      <h3 className="text-[#2ecc8a] font-bold text-lg mb-2">Finding the best opportunities for you...</h3>
-                      <p className="text-[#7a94ad] text-sm mb-6 max-w-[340px] mx-auto leading-relaxed">
-                        Scanning Google for the latest {selectedCountry?.name} scholarship deadlines and links. Just a moment (max 60s), please!
+                    <div className="animate-in slide-in-from-bottom-2">
+                      <h3 className="text-emerald-600 dark:text-emerald-400 font-bold text-xl mb-3">Scouring Official Portals...</h3>
+                      <p className="text-slate-500 dark:text-slate-400 text-base max-w-md mx-auto leading-relaxed">
+                        Gathering the latest 2026 genuine scholarship deadlines, exact admission requirements, and calculating financial data. Please hold on!
                       </p>
-                    </>
+                    </div>
                   ) : (
-                    <>
-                      <h3 className="text-[#d4a843] font-bold text-lg mb-2">AI is analyzing verified data...</h3>
-                      <p className="text-[#7a94ad] text-sm mb-6 max-w-[320px] mx-auto leading-relaxed">
-                        Gathering scholarships, part-time jobs, and living costs for {level === 'all' ? 'all levels' : `${level} level`} in {selectedCountry?.name}.
+                    <div className="animate-in fade-in">
+                      <h3 className="text-amber-600 dark:text-amber-500 font-bold text-xl mb-3">AI is analyzing verified data...</h3>
+                      <p className="text-slate-500 dark:text-slate-400 text-base max-w-md mx-auto leading-relaxed">
+                        Compiling programs, genuine application links, and monthly savings calculators for {countrySearch || selectedCountry?.name}.
                       </p>
-                    </>
+                    </div>
                   )}
                   
-                  <SkeletonLoader />
+                  <div className="mt-12 opacity-50"><SkeletonLoader /></div>
                 </div>
               ) : error ? (
-                <div className="bg-[#1a0a0a] border border-[#e05555]/30 rounded-2xl p-6">
-                  <h4 className="font-bold text-[#e05555] mb-2">⚠️ Error</h4>
-                  <p className="text-sm text-[#e05555]/80 mb-4">{error}</p>
-                  <button onClick={() => fetchScholarship(selectedCountry, level, background)} className="px-5 py-2 bg-[#e05555]/20 hover:bg-[#e05555]/30 rounded-xl text-sm text-[#e05555] transition-all">Retry</button>
+                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl p-8 text-center">
+                  <div className="text-4xl mb-4">⚠️</div>
+                  <h4 className="font-bold text-red-600 dark:text-red-400 text-lg mb-2">Generation Failed</h4>
+                  <p className="text-slate-600 dark:text-red-300/80 mb-6">{error}</p>
+                  <button onClick={() => fetchScholarship(selectedCountry, level, background, bachelorMajor)} className="px-8 py-3 bg-red-100 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-900/60 rounded-xl text-sm font-bold text-red-700 dark:text-red-300 transition-all">Try Again</button>
                 </div>
               ) : resultText ? (
-                <>
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
                   <MarkdownRenderer text={resultText} />
-                  <div className="mt-8 p-4 bg-[#d4a843]/8 border border-[#d4a843]/25 rounded-xl text-xs text-[#7a94ad]">
-                    ⚠️ Always verify deadlines and requirements from official scholarship websites before applying.
+                  
+                  {/* Warning Footer inside Doc */}
+                  <div className="mt-12 p-5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-xl flex gap-4 items-start">
+                     <span className="text-2xl">💡</span>
+                     <div>
+                       <h4 className="font-bold text-amber-800 dark:text-amber-500 text-sm mb-1">Final Verification Required</h4>
+                       <p className="text-sm text-amber-700/80 dark:text-amber-400/80 leading-relaxed">
+                         Universities and embassies update their requirements without prior notice. Always cross-check deadlines, GPA requirements, and tuition fees using the provided official links before starting your application.
+                       </p>
+                     </div>
                   </div>
-                </>
+                </div>
               ) : null}
             </div>
           </div>
         )}
 
-        {/* ── SEARCH ── */}
+        {/* ── SEARCH (ASK AI) VIEW ── */}
         {view === VIEWS.SEARCH && (
-          <div className="animate-in fade-in max-w-3xl mx-auto">
-            <h2 className="text-3xl font-serif font-bold text-white mb-2">Ask AI Counselor</h2>
-            <p className="text-[#7a94ad] mb-6 text-sm">স্কলারশিপ সম্পর্কে যেকোনো প্রশ্ন করুন — AI Google Search করে verified উত্তর দেবে।</p>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-4xl font-serif font-extrabold text-slate-900 dark:text-white mb-3">Ask BideshPro AI</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-lg max-w-xl mx-auto">
+                যেকোনো স্কলারশিপ, ভিসা বা রিকোয়ারমেন্টস সম্পর্কে বিস্তারিত প্রশ্ন করুন। AI লাইভ ইন্টারনেট সার্চ করে সঠিক তথ্য দেবে।
+              </p>
+            </div>
 
             {history.length > 0 && (
-              <div className="flex gap-2 flex-wrap mb-4 items-center">
-                <span className="text-xs text-[#3d5269] font-semibold">Recent:</span>
+              <div className="flex gap-2 flex-wrap mb-6 items-center justify-center">
+                <span className="text-xs text-slate-400 font-bold uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">Recent</span>
                 {history.map((h, i) => (
                   <button key={i} onClick={() => { setGlobalQ(h); handleGlobalAsk(h); }}
-                    className="text-xs bg-[#141f2e] hover:bg-[#1e3045] text-[#7a94ad] hover:text-white px-3 py-1.5 rounded-full border border-[#1e3045] truncate max-w-[180px] transition-colors">
-                    {h}
+                    className="text-xs bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 truncate max-w-[200px] transition-all shadow-sm">
+                    "{h}"
                   </button>
                 ))}
               </div>
             )}
 
-            <div className="relative mb-6">
+            <div className="relative mb-10 shadow-2xl shadow-slate-200/50 dark:shadow-none rounded-3xl">
               <textarea
                 value={globalQ}
                 onChange={(e) => setGlobalQ(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGlobalAsk(); }}}
-                placeholder="Ask anything about study abroad..."
-                className="w-full bg-[#070b12] border border-[#141f2e] focus:border-[#d4a843] rounded-2xl p-5 pr-28 text-white outline-none resize-none min-h-[120px] text-sm transition-all"
+                placeholder="Example: How to apply for DAAD scholarship in Germany with Arts background? Requirements?"
+                className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 focus:border-amber-500 dark:focus:border-amber-500 rounded-3xl p-6 pr-36 text-slate-900 dark:text-white outline-none resize-none min-h-[140px] text-base transition-all placeholder-slate-400"
               />
               <button
                 onClick={() => handleGlobalAsk()}
                 disabled={loading || !globalQ.trim()}
-                className="absolute bottom-4 right-4 bg-[#d4a843] hover:bg-[#e5b954] disabled:opacity-40 text-black font-bold px-5 py-2.5 rounded-xl text-sm transition-all"
+                className="absolute bottom-5 right-5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:hover:bg-amber-500 text-slate-900 font-bold px-8 py-3 rounded-xl text-sm transition-all shadow-md flex items-center gap-2"
               >
-                {loading ? "Thinking…" : "Ask →"}
+                {loading ? (
+                  <><div className="w-4 h-4 border-2 border-slate-900 rounded-full border-t-transparent animate-spin"></div> Thinking...</>
+                ) : "Ask AI 🚀"}
               </button>
             </div>
 
             {loading ? (
-              <div className="bg-[#070b12] rounded-2xl p-8 border border-[#141f2e] text-center">
+              <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-10 border border-slate-200 dark:border-slate-800 text-center shadow-xl">
                 {isSlowLoading && (
-                  <p className="text-[#2ecc8a] text-sm mb-4 font-bold animate-pulse">
-                    Scouring the web for the best results. Just a moment...
+                  <p className="text-emerald-600 dark:text-emerald-400 text-base mb-6 font-bold animate-pulse">
+                    Searching global university databases. Just a moment...
                   </p>
                 )}
                 <SkeletonLoader />
               </div>
             ) : globalResult ? (
-              <div className="bg-[#070b12] border border-[#141f2e] rounded-2xl p-6 md:p-8 relative shadow-xl">
+              <div className="bg-white dark:bg-[#0b1120] border border-slate-200 dark:border-slate-800 rounded-[2rem] p-8 md:p-12 relative shadow-2xl">
                 {!globalResult.startsWith("❌") && (
-                  <button onClick={() => handleCopy(globalResult)} className="absolute top-4 right-4 px-3 py-1 bg-[#141f2e] text-[#7a94ad] hover:text-white rounded-lg text-xs transition-colors">
-                    {copied ? "✅" : "📋 Copy"}
+                  <button onClick={() => handleCopy(globalResult)} className="absolute top-6 right-6 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-sm font-bold transition-all border border-slate-200 dark:border-slate-700">
+                    {copied ? "✅ Copied" : "📋 Copy"}
                   </button>
                 )}
                 {globalResult.startsWith("❌") ? (
-                  <p className="text-[#e05555] text-sm">{globalResult}</p>
+                  <p className="text-red-500 font-medium">{globalResult}</p>
                 ) : (
-                  <MarkdownRenderer text={globalResult} />
+                  <div className="animate-in fade-in">
+                    <MarkdownRenderer text={globalResult} />
+                  </div>
                 )}
               </div>
             ) : null}
@@ -1156,27 +1147,32 @@ Format response with emojis and clear sections. End with a "🔗 Useful Links" s
       </main>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-[#141f2e] mt-12 py-6 px-4">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-[#3d5269]">
+      <footer className="border-t border-slate-200 dark:border-slate-800 mt-16 py-8 px-4 bg-white dark:bg-[#050810] transition-colors duration-300">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-500 dark:text-slate-400 font-medium">
           <div className="flex items-center gap-2">
-            <span className="text-[#d4a843] font-bold">BideshPro</span>
-            <span>© 2025</span>
-            <span>·</span>
-            <a href="https://www.linkedin.com/in/RahatAhmedX" target="_blank" rel="noopener noreferrer" className="hover:text-[#4a9eff] transition-colors">
-              by Rahat Ahmed
+            <span className="text-amber-600 dark:text-amber-500 font-bold text-base">BideshPro</span>
+            <span>© 2026</span>
+            <span className="opacity-50">|</span>
+            <a href="https://www.linkedin.com/in/RahatAhmedX" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+              Developed by Rahat Ahmed
             </a>
           </div>
-          <div className="flex items-center gap-4">
-            <button onClick={() => setPolicyModal("privacy")} className="hover:text-[#4a9eff] transition-colors underline underline-offset-2">Privacy Policy</button>
-            <button onClick={() => setPolicyModal("terms")} className="hover:text-[#4a9eff] transition-colors underline underline-offset-2">Terms & Conditions</button>
+          <div className="flex items-center gap-6">
+            <button onClick={() => setPolicyModal("privacy")} className="hover:text-slate-900 dark:hover:text-white transition-colors underline underline-offset-4">Privacy Policy</button>
+            <button onClick={() => setPolicyModal("terms")} className="hover:text-slate-900 dark:hover:text-white transition-colors underline underline-offset-4">Terms & Conditions</button>
           </div>
-          <div className="hidden sm:block text-[#1e3045] text-[10px]">AI data may be inaccurate — always verify before applying</div>
+          <div className="text-xs px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
+            ⚠️ AI data may be inaccurate — verify officially.
+          </div>
         </div>
       </footer>
 
       {/* ── Modals ── */}
       {policyModal && <PolicyModal type={policyModal} onClose={() => setPolicyModal(null)} />}
-      {!consentGiven && <ConsentBanner onAccept={handleConsent} onViewPolicy={() => setPolicyModal("privacy")} />}
+      {!consentGiven && <ConsentBanner onAccept={() => {
+        try { localStorage.setItem("bideshpro_consent", "true"); } catch (_) {}
+        setConsentGiven(true);
+      }} onViewPolicy={() => setPolicyModal("privacy")} />}
     </div>
   );
 }
