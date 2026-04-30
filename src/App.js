@@ -675,7 +675,7 @@ ${langNote}
   // Fetch Action
   const fetchScholarship = useCallback(async (country, lvl, bg, major) => {
     if (isOffline) return setError("You are offline. Please check your internet connection.");
-    
+
     setLoading(true); setError(null); setResultText(null); setCopied(false); setView(VIEWS.RESULT);
     setIsSlowLoading(false);
 
@@ -772,7 +772,7 @@ User Query: "${q}"
   return (
     <div className={theme}>
       <div className="min-h-screen bg-slate-50 dark:bg-[#03050a] text-slate-800 dark:text-[#dde6f0] font-sans selection:bg-[#d4a843] selection:text-black transition-colors duration-500 pb-20 overflow-x-hidden">
-        
+
         {/* Offline Banner */}
         {isOffline && (
           <div className="bg-red-500 text-white text-center py-2 text-sm font-bold tracking-wide shadow-md">
@@ -783,7 +783,7 @@ User Query: "${q}"
         {/* ── Header ── */}
         <header className="sticky top-0 z-50 bg-white/80 dark:bg-[#050810]/80 backdrop-blur-lg border-b border-slate-200 dark:border-[#141f2e] shadow-sm transition-colors duration-500">
           <div className="max-w-7xl mx-auto px-4 h-16 sm:h-20 flex items-center justify-between gap-3">
-            
+
             {/* Logo */}
             <div className="flex items-center gap-3 cursor-pointer group" onClick={() => { setView(VIEWS.COUNTRIES); setSelectedCountry(null); }}>
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[#d4a843] to-[#8a6b24] flex items-center justify-center text-xl sm:text-2xl shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform duration-300 flex-shrink-0">
@@ -857,7 +857,7 @@ User Query: "${q}"
           {/* ── COUNTRIES VIEW ── */}
           {view === VIEWS.COUNTRIES && (
             <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out">
-              
+
               {/* Hero Title */}
               <div className="mb-12 text-center md:text-left">
                 <h2 className="text-4xl md:text-6xl font-serif font-extrabold text-slate-900 dark:text-white mb-4 leading-[1.1] transition-colors duration-500">
@@ -890,7 +890,7 @@ User Query: "${q}"
 
               {/* Filters Dashboard */}
               <div className="bg-white dark:bg-[#070b12] border border-slate-200 dark:border-[#141f2e] rounded-3xl p-6 md:p-8 mb-12 shadow-xl shadow-slate-200/50 dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] flex flex-col xl:flex-row gap-8 transition-colors duration-500">
-                
+
                 {/* Search Box */}
                 <div className="flex-1">
                   <label className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-[#3d5269] uppercase tracking-widest mb-3 transition-colors duration-500">
@@ -910,7 +910,7 @@ User Query: "${q}"
 
                 {/* Dynamic Filters */}
                 <div className="flex-1 flex flex-col gap-6">
-                  
+
                   {/* Level */}
                   <div>
                     <label className="block text-xs font-bold text-slate-500 dark:text-[#3d5269] uppercase tracking-widest mb-3 transition-colors duration-500">Degree Level</label>
@@ -998,14 +998,14 @@ User Query: "${q}"
           {/* ── RESULT VIEW ── */}
           {view === VIEWS.RESULT && (
             <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out max-w-5xl mx-auto" ref={resultRef}>
-              
+
               {/* Navigation Bar inside Result */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
                 <button onClick={() => setView(VIEWS.COUNTRIES)} className="group flex items-center gap-2 text-slate-600 dark:text-[#7a94ad] hover:text-slate-900 dark:hover:text-white bg-white dark:bg-[#070b12] border border-slate-200 dark:border-[#141f2e] px-5 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-[#141f2e] transition-all duration-300 font-bold text-sm shadow-sm hover:shadow-md">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:-translate-x-1 transition-transform"><path d="m15 18-6-6 6-6"/></svg>
                   Back to Search
                 </button>
-                
+
                 <div className="flex flex-wrap gap-2">
                    {["all","bachelor","masters","phd"].map((l) => (
                     <button key={l}
@@ -1023,7 +1023,7 @@ User Query: "${q}"
 
               {/* Document Card */}
               <div className="bg-white dark:bg-[#070b12] border border-slate-200 dark:border-[#141f2e] rounded-[2rem] p-6 sm:p-10 md:p-12 shadow-2xl shadow-slate-200/50 dark:shadow-none transition-colors duration-500">
-                
+
                 {/* Document Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10 pb-8 border-b border-slate-200 dark:border-[#141f2e] transition-colors duration-500">
                   <div className="flex items-center gap-5">
@@ -1045,7 +1045,7 @@ User Query: "${q}"
                       </div>
                     </div>
                   </div>
-                  
+
                   {resultText && !loading && (
                     <button onClick={() => handleCopy(resultText)} className="group flex items-center gap-2 px-6 py-3 bg-slate-100 dark:bg-[#141f2e] hover:bg-slate-200 dark:hover:bg-[#1e3045] text-slate-700 dark:text-white rounded-xl text-sm font-bold transition-all duration-300 border border-slate-200 dark:border-[#1e3045] shadow-sm hover:shadow-md hover:-translate-y-0.5">
                       {copied ? "✅ Copied!" : (
@@ -1066,7 +1066,7 @@ User Query: "${q}"
                       <div className="absolute inset-0 border-4 border-amber-500 dark:border-[#d4a843] rounded-full border-t-transparent animate-spin"></div>
                       <span className="text-4xl absolute animate-pulse">🌍</span>
                     </div>
-                    
+
                     {isSlowLoading ? (
                       <div className="animate-in slide-in-from-bottom-2 duration-500">
                         <h3 className="text-emerald-600 dark:text-[#2ecc8a] font-bold text-xl mb-3">Scouring Official Portals...</h3>
@@ -1082,7 +1082,7 @@ User Query: "${q}"
                         </p>
                       </div>
                     )}
-                    
+
                     <div className="mt-16 opacity-60 transition-opacity duration-500"><SkeletonLoader /></div>
                   </div>
                 ) : error ? (
@@ -1095,7 +1095,7 @@ User Query: "${q}"
                 ) : resultText ? (
                   <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out">
                     <MarkdownRenderer text={resultText} />
-                    
+
                     {/* Warning Footer inside Doc */}
                     <div className="mt-12 p-6 bg-amber-50 dark:bg-[#d4a843]/10 border border-amber-200 dark:border-[#d4a843]/20 rounded-2xl flex gap-5 items-start transition-colors duration-500">
                        <span className="text-3xl drop-shadow-sm">💡</span>
@@ -1145,7 +1145,7 @@ User Query: "${q}"
                   value={globalQ}
                   onChange={(e) => setGlobalQ(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGlobalAsk(); }}}
-                  placeholder="Example: How to apply for DAAD scholarship in Germany with Arts background? Requirements?"
+                  placeholder="Example: CSE vs Cybersecurity"
                   className="w-full relative z-10 bg-white dark:bg-[#070b12] border-2 border-slate-200 dark:border-[#141f2e] focus:border-amber-500 dark:focus:border-[#d4a843] rounded-3xl p-6 pr-40 text-slate-900 dark:text-white outline-none resize-none min-h-[160px] text-base transition-all duration-500 placeholder-slate-400 dark:placeholder-[#3d5269]"
                 />
                 <button
