@@ -342,8 +342,8 @@ We do **NOT** collect: your name, email, phone number, or any personally identif
 ## 4. Third-Party Services
 BideshPro uses these third-party services, each governed by their own privacy policies:
 
-- **Google Gemini AI** (ai.google.dev) — processes your search queries to generate responses
-- **Google Search** — Gemini uses real-time Google Search to find scholarship information
+- **Groq AI** (groq.com) — processes your search queries to generate AI responses using Llama models
+- **Tavily Search API** (tavily.com) — real-time web search to find current scholarship information
 - **ipapi.co** — IP geolocation service that provides city/country/ISP data
 - **Firebase (Google)** — anonymous authentication and usage analytics storage
 - **Vercel / Render** — cloud hosting provider for the application
@@ -383,7 +383,7 @@ For privacy concerns, contact the developer:
 By accessing or using BideshPro ("the Service"), you agree to be bound by these Terms & Conditions. If you do not agree, please discontinue use immediately.
 
 ## 2. Description of Service
-BideshPro is an AI-powered scholarship information tool for Bangladeshi students seeking international study opportunities. The service uses Google Gemini AI with real-time web search to provide study abroad information including scholarships, living costs, and program details.
+BideshPro is an AI-powered scholarship information tool for Bangladeshi students seeking international study opportunities. The service uses Groq AI (Llama models) with real-time Tavily web search to provide study abroad information including scholarships, living costs, and program details.
 
 ## 3. ⚠️ Accuracy Disclaimer (IMPORTANT)
 **All scholarship information provided by BideshPro is AI-generated from web searches and may be:**
@@ -683,9 +683,7 @@ function MainApp() {
     const lvlText = lvl === "all" ? "All Levels (Bachelor, Master's & PhD)" : lvl.charAt(0).toUpperCase() + lvl.slice(1);
     const bgText  = bg  === "all" ? "All Backgrounds (Science, Arts, Commerce)" : bg.charAt(0).toUpperCase() + bg.slice(1);
 
-    return `You are a highly experienced international scholarship consultant for Bangladeshi students.
-
-CRITICAL DIRECTIVE: USE GOOGLE SEARCH to find current, authentic data.
+    const prompt = `You are a highly experienced international scholarship consultant for Bangladeshi students.
 
 🎯 Country: ${country.name}
 🎓 Degree: ${lvlText}
@@ -694,9 +692,9 @@ CRITICAL DIRECTIVE: USE GOOGLE SEARCH to find current, authentic data.
 
 ⚠️ STRICT RULES (DO NOT VIOLATE):
 1. EXACT MATCH: Ensure universities ACTUALLY offer "${bgText}" for "${lvlText}". Do not suggest purely Tech/Engg universities if background is Arts/Commerce.
-2. LATEST QUOTAS: Search for "Bangladeshi student quota ${country.name} scholarship recent updates". State if there is a specific quota (e.g. 500) or if it's globally open.
-3. CURRENT DEADLINES: Give exact dates for the CURRENT YEAR. If unpublished, use last year's dates and note "(Based on last year's cycle)". Do not write "Varies".
-4. NO BROKEN LINKS (CRITICAL): Do NOT guess or hallucinate deep URLs. If you cannot verify the exact application portal link via search, provide the MAIN homepage of the university (e.g., https://www.harvard.edu) instead of making up a broken link.
+2. LATEST QUOTAS: State if there is a specific Bangladesh quota (e.g. 500 seats) or if it's globally open.
+3. CURRENT DEADLINES: Give exact dates for the CURRENT academic year. If unpublished, use last year's dates and note "(Based on last year's cycle — verify officially)". Do not write "Varies".
+4. NO BROKEN LINKS (CRITICAL): Do NOT guess or hallucinate deep URLs. If you cannot verify the exact application portal link from the search results, provide the MAIN homepage of the university only.
 
 ═══════════════════════════════════
 📋 FORMAT (Use these exact headers):
@@ -748,6 +746,10 @@ CRITICAL DIRECTIVE: USE GOOGLE SEARCH to find current, authentic data.
 |----------|----------------------|
 | Embassy | ... |
 | Visa Portal | ... |`;
+
+    const tavilyQuery = `${country.name} scholarship Bangladeshi students ${new Date().getFullYear()} ${lvl === "all" ? "" : lvl} deadline eligibility`.trim();
+
+    return { prompt, tavilyQuery };
   }, [language]);
 
   // Fetch scholarship
@@ -763,10 +765,11 @@ CRITICAL DIRECTIVE: USE GOOGLE SEARCH to find current, authentic data.
     const slowTimer = setTimeout(() => setIsSlowLoading(true), 8000);
 
     try {
+      const { prompt, tavilyQuery } = buildPrompt(country, lvl, bg);
       const text = await ApiService.fetch("https://studyabroadportal.onrender.com/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: buildPrompt(country, lvl, bg), locationData: userInfo, searchQuery: cacheKey }),
+        body: JSON.stringify({ prompt, tavilyQuery, locationData: userInfo, searchQuery: cacheKey }),
       });
       CacheService.set(cacheKey, text);
       setResultText(text);
@@ -798,20 +801,22 @@ CRITICAL DIRECTIVE: USE GOOGLE SEARCH to find current, authentic data.
 
     const prompt = `You are an expert international scholarship and study abroad consultant for Bangladeshi students.
 
-Answer comprehensively using Google Search to ensure verified, current information:
+Answer comprehensively using the provided web search results as your primary source:
 
 "${q}"
 
 ⚠️ Rules:
 - Write entirely in ${language}
-- ALWAYS use Google Search to verify facts.
+- Use ONLY verified facts from the search results provided.
 - Include REAL, working URLs ONLY. Do not hallucinate links. If unsure, provide the main website homepage.
 - Include Bangladesh-specific quota/seat info where available.
 - Mention SSC/HSC GPA (out of 5.0) and CGPA (out of 4.0).
 - Format with clear headers and bullet points.
-- Include official deadlines (current year).
+- Include official deadlines (current academic year).
 
 Format response with emojis and clear sections. End with a "🔗 Useful Links" section (REAL URLs ONLY).`;
+
+    const tavilyQuery = `${q.trim()} Bangladesh students ${new Date().getFullYear()}`;
 
     const slowTimer = setTimeout(() => setIsSlowLoading(true), 8000);
 
@@ -819,7 +824,7 @@ Format response with emojis and clear sections. End with a "🔗 Useful Links" s
       const text = await ApiService.fetch("https://studyabroadportal.onrender.com/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, locationData: userInfo, searchQuery: cacheKey }),
+        body: JSON.stringify({ prompt, tavilyQuery, locationData: userInfo, searchQuery: cacheKey }),
       });
       CacheService.set(cacheKey, text);
       setGlobalResult(text);
