@@ -1,9 +1,9 @@
 const express = require("express");
-const cors = require("cors");
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
 
+// CONFIG
 const PORT = process.env.PORT || 10000;
 
 const rateLimitMap = new Map();
@@ -13,10 +13,13 @@ const MAX_RPM = 15;
 
 setInterval(() => rateLimitMap.clear(), 60_000);
 
+// Groq models
 const GROQ_MODELS = [
-  "llama-3.3-70b-versatile",
-  "llama-3.1-70b-versatile",
-  "gemma2-9b-it",
+  { id: "llama-3.3-70b-versatile"  },
+  { id: "llama-3.1-70b-versatile"  },
+  { id: "mixtral-8x7b-32768"       },
+  { id: "llama-3.1-8b-instant"     },
+  { id: "gemma2-9b-it"             },
 ];
 
 const ALLOWED_ORIGINS = [
@@ -26,11 +29,9 @@ const ALLOWED_ORIGINS = [
   "www.bidesh.pro.bd",
 ];
 
+// HELPERS
 const esc = (s) =>
-  String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 async function tgSend(botToken, chatId, html) {
   if (!botToken || !chatId) return;
@@ -50,98 +51,51 @@ async function tgSend(botToken, chatId, html) {
   }
 }
 
-async function tavilySearch(query, tavilyKey) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 12000);
-  try {
-    const r = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: tavilyKey,
-        query,
-        search_depth: "advanced",
-        include_answer: true,
-        max_results: 8,
-      }),
-      signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-    if (!r.ok) return null;
-    const d = await r.json();
-    return d;
-  } catch {
-    clearTimeout(timer);
-    return null;
-  }
-}
-
-async function groqGenerate(systemPrompt, userPrompt, groqKeys) {
-  const attempts = [];
-  for (let k = 0; k < groqKeys.length; k++) {
-    for (const model of GROQ_MODELS) {
+// Tavily Search — tries each key in turn
+async function tavilySearch(query, keysString) {
+  const keys = keysString.split(",").map((k) => k.trim()).filter(Boolean);
+  for (const key of keys) {
+    try {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 25000);
-      try {
-        const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${groqKeys[k]}`,
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            temperature: 0.5,
-            max_tokens: 4096,
-          }),
-          signal: ctrl.signal,
-        });
-        clearTimeout(timer);
-
-        if (r.ok) {
-          const d = await r.json();
-          const text = d.choices?.[0]?.message?.content;
-          if (text) {
-            attempts.push({ key: k + 1, model, status: "✅ success" });
-            return { text, attempts };
-          }
-          attempts.push({ key: k + 1, model, status: "⚠️ empty response" });
-        } else {
-          const errBody = await r.json().catch(() => ({}));
-          const errMsg = errBody?.error?.message || `HTTP ${r.status}`;
-          const isQuota = r.status === 429;
-          attempts.push({
-            key: k + 1,
-            model,
-            status: isQuota ? "⏭ rate-limit" : `❌ HTTP ${r.status}`,
-            detail: errMsg.slice(0, 120),
-          });
-          if (isQuota) continue;
-          if (r.status === 401 || r.status === 403) break;
-        }
-      } catch (err) {
-        clearTimeout(timer);
-        attempts.push({
-          key: k + 1,
-          model,
-          status: err.name === "AbortError" ? "⏱ timeout (25s)" : "❌ exception",
-          detail: err.name === "AbortError" ? "" : err.message.slice(0, 80),
-        });
+      const timer = setTimeout(() => ctrl.abort(), 12_000);
+      const r = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_key: key,
+          query,
+          search_depth: "basic",
+          max_results: 6,
+          include_answer: true,
+          include_raw_content: false,
+        }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      if (r.ok) {
+        const d = await r.json();
+        return {
+          answer:  d.answer || "",
+          results: (d.results || []).map((x) => ({
+            title:   x.title   || "",
+            url:     x.url     || "",
+            content: (x.content || "").slice(0, 600),
+          })),
+        };
       }
+    } catch (e) {
+      console.error("Tavily key failed:", e.message);
     }
   }
-  return { text: null, attempts };
+  return null;
 }
 
+// CORS
 app.use((req, res, next) => {
-  const origin = req.headers.origin || "";
+  const origin  = req.headers.origin || "";
   const allowed = !origin || ALLOWED_ORIGINS.some((o) => origin.includes(o));
   if (allowed) {
-    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+    res.setHeader("Access-Control-Allow-Origin",  origin || "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   }
@@ -149,46 +103,43 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get("/", (req, res) => {
-  res.status(200).send("✅ BideshPro Backend is Awake and Running!");
-});
+// HEALTH CHECK
+app.get("/", (_req, res) =>
+  res.status(200).send("✅ BideshPro Backend is Awake and Running!")
+);
 
+// MAIN ROUTE
 app.post("/api/search", async (req, res) => {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  const startMs = Date.now();
+  const chatId   = process.env.TELEGRAM_CHAT_ID;
+  const startMs  = Date.now();
 
-  const ip =
-    req.headers["x-forwarded-for"]?.split(",")[0] ||
-    req.socket.remoteAddress ||
-    "unknown";
-
-  const { prompt, locationData, searchQuery, tavilyQuery } = req.body || {};
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress || "unknown";
+  const { prompt, locationData, searchQuery } = req.body || {};
   const safeQuery = String(searchQuery || "Unknown").slice(0, 400);
 
   const geo = {
-    city: String(locationData?.city || "Unknown").slice(0, 60),
-    region: String(locationData?.region || "Unknown").slice(0, 60),
-    country: String(locationData?.country || "Unknown").slice(0, 60),
+    city:        String(locationData?.city        || "Unknown").slice(0, 60),
+    region:      String(locationData?.region      || "Unknown").slice(0, 60),
+    country:     String(locationData?.country     || "Unknown").slice(0, 60),
     countryCode: String(locationData?.countryCode || "??").slice(0, 4),
-    org: String(locationData?.org || "Unknown").slice(0, 120),
-    lat: parseFloat(locationData?.latitude) || null,
-    lon: parseFloat(locationData?.longitude) || null,
+    org:         String(locationData?.org         || "Unknown").slice(0, 120),
+    lat:         parseFloat(locationData?.latitude)  || null,
+    lon:         parseFloat(locationData?.longitude) || null,
   };
-  const mapsUrl =
-    geo.lat && geo.lon
-      ? `https://www.google.com/maps?q=${geo.lat},${geo.lon}`
-      : null;
+  const mapsUrl = geo.lat && geo.lon
+    ? `https://www.google.com/maps?q=${geo.lat},${geo.lon}`
+    : null;
 
   const logAndReturnError = async (statusCode, clientMsg, tgDetail) => {
-    const errorMsg = `🚨 <b>BideshPro API Error</b>\n\n👤 <b>IP:</b> <code>${esc(ip)}</code>\n🏙 <b>Geo:</b> ${esc(geo.city)}, ${esc(geo.country)}\n🔎 <b>Query:</b> <code>${esc(safeQuery)}</code>\n🛑 <b>Status:</b> ${statusCode}\n⚠️ <b>Reason:</b> ${esc(tgDetail)}`;
-    await tgSend(botToken, chatId, errorMsg);
+    const msg = `🚨 <b>BideshPro API Error</b>\n\n👤 <b>IP:</b> <code>${esc(ip)}</code>\n🏙 <b>Geo:</b> ${esc(geo.city)}, ${esc(geo.country)}\n🔎 <b>Query:</b> <code>${esc(safeQuery)}</code>\n🛑 <b>Status:</b> ${statusCode}\n⚠️ <b>Reason:</b> ${esc(tgDetail)}`;
+    await tgSend(botToken, chatId, msg);
     return res.status(statusCode).json({ error: clientMsg });
   };
 
   try {
     if (!prompt || prompt.length > 12000)
-      return logAndReturnError(400, "Invalid prompt", `Prompt validation failed. Length: ${prompt?.length || 0}`);
+      return logAndReturnError(400, "Invalid prompt", "Prompt missing or too long (>12000 chars)");
 
     if (activeRequests >= MAX_CONCURRENT)
       return logAndReturnError(503, "Server busy. Try again.", "MAX_CONCURRENT reached");
@@ -199,83 +150,125 @@ app.post("/api/search", async (req, res) => {
 
     rateLimitMap.set(ip, reqCount + 1);
 
-    const groqKeys = (process.env.GROQ_API_KEYS || "")
-      .split(",")
-      .map((k) => k.trim())
-      .filter(Boolean);
+    const groqKeys = (process.env.GROQ_API_KEYS || "").split(",").map((k) => k.trim()).filter(Boolean);
     if (!groqKeys.length)
-      return logAndReturnError(500, "Server configuration error", "GROQ_API_KEYS missing");
+      return logAndReturnError(500, "Server Configuration Error", "No GROQ_API_KEYS configured");
 
-    const tavilyKeys = (process.env.TAVILY_API_KEYS || "")
-      .split(",")
-      .map((k) => k.trim())
-      .filter(Boolean);
+    const tavilyKeysStr = process.env.TAVILY_API_KEYS || "";
 
     activeRequests++;
 
     let searchContext = "";
-    let tavilyUsed = false;
+    let tavilyStatus  = tavilyKeysStr ? "⏳ pending" : "⏭ skipped (no keys)";
 
-    if (tavilyKeys.length && tavilyQuery) {
-      const tvKey = tavilyKeys[Math.floor(Math.random() * tavilyKeys.length)];
-      const tvResult = await tavilySearch(tavilyQuery, tvKey);
-      if (tvResult) {
-        tavilyUsed = true;
-        const snippets = (tvResult.results || [])
-          .slice(0, 6)
-          .map((r, i) => `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.content?.slice(0, 400)}`)
-          .join("\n\n");
-        const answer = tvResult.answer ? `Summary: ${tvResult.answer}\n\n` : "";
-        searchContext = `REAL-TIME WEB SEARCH RESULTS (use these as your primary source):\n${answer}${snippets}`;
+    if (tavilyKeysStr) {
+      const tavilyData = await tavilySearch(
+        safeQuery !== "Unknown" ? safeQuery : prompt.slice(0, 200),
+        tavilyKeysStr
+      );
+      if (tavilyData) {
+        tavilyStatus = `✅ ${tavilyData.results.length} results`;
+        const parts = [];
+        if (tavilyData.answer) parts.push(`Web Answer Summary: ${tavilyData.answer}`);
+        tavilyData.results.forEach((r, i) => {
+          parts.push(`[Source ${i + 1}] ${r.title}\nURL: ${r.url}\n${r.content}`);
+        });
+        searchContext = parts.join("\n\n");
+      } else {
+        tavilyStatus = "❌ all keys failed";
       }
     }
 
-    const systemPrompt = `You are a highly experienced international scholarship consultant for Bangladeshi students. Your responses must be detailed, accurate, and formatted in clear Markdown.
-
-CRITICAL RULES:
-1. Use the provided web search results as your PRIMARY source of truth.
-2. Always mention the CURRENT academic year and cycle.
-3. For deadlines, use exact dates. If unknown, state "(Based on last year's cycle — verify officially)".
-4. NEVER fabricate URLs. If you cannot confirm a URL from search results, use the main domain only (e.g., https://www.harvard.edu).
-5. GPA should be mentioned as both out of 5.0 (SSC/HSC) and out of 4.0 (CGPA).
-6. Include Bangladesh-specific quota seats where available.
-7. Stipends and costs must be in local currency AND approximate BDT.`;
-
-    const userPrompt = searchContext
-      ? `${searchContext}\n\n---\n\nNow answer the following using the search results above:\n\n${prompt}`
+    // Enrich the user prompt with live search data
+    const enrichedPrompt = searchContext
+      ? `${prompt}\n\n${"─".repeat(60)}\n🔍 REAL-TIME WEB SEARCH RESULTS (Tavily — use these as authoritative sources for current deadlines, links, and data):\n\n${searchContext}\n${"─".repeat(60)}`
       : prompt;
 
-    const { text: finalText, attempts } = await groqGenerate(systemPrompt, userPrompt, groqKeys);
+    const attempts  = [];
+    let finalText   = null;
+    let usedKeyIdx  = -1;
+    let usedModel   = "";
+
+    outer:
+    for (let k = 0; k < groqKeys.length; k++) {
+      for (const model of GROQ_MODELS) {
+        const ctrl  = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 30_000);
+
+        try {
+          const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type":  "application/json",
+              "Authorization": `Bearer ${groqKeys[k]}`,
+            },
+            body: JSON.stringify({
+              model:       model.id,
+              messages:    [{ role: "user", content: enrichedPrompt }],
+              max_tokens:  4096,
+              temperature: 0.65,
+            }),
+            signal: ctrl.signal,
+          });
+          clearTimeout(timer);
+
+          if (r.ok) {
+            const d    = await r.json();
+            const text = d.choices?.[0]?.message?.content;
+            if (text) {
+              finalText  = text;
+              usedKeyIdx = k + 1;
+              usedModel  = model.id;
+              attempts.push({ key: k + 1, model: model.id, status: "✅ success" });
+              break outer;
+            }
+            attempts.push({ key: k + 1, model: model.id, status: "⚠️ empty response" });
+          } else {
+            const errBody = await r.json().catch(() => ({}));
+            const errMsg  = errBody?.error?.message || `HTTP ${r.status}`;
+            const isQuota = r.status === 429 || /quota|rate.?limit|exceeded/i.test(errMsg);
+            attempts.push({
+              key:    k + 1,
+              model:  model.id,
+              status: isQuota ? "⏭ quota/rate-limit" : `❌ HTTP ${r.status}`,
+              detail: errMsg.slice(0, 120),
+            });
+          }
+        } catch (err) {
+          clearTimeout(timer);
+          attempts.push({
+            key:    k + 1,
+            model:  model.id,
+            status: err.name === "AbortError" ? "⏱ timeout (30s)" : "❌ exception",
+            detail: err.name === "AbortError" ? "" : err.message.slice(0, 80),
+          });
+        }
+      }
+    }
 
     const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
-
     const attemptLines = attempts
-      .map(
-        (a) =>
-          `${a.status} — Key#${a.key} | <code>${esc(a.model)}</code>${a.detail ? `\n    └ <i>${esc(a.detail)}</i>` : ""}`
+      .map((a) =>
+        `${a.status} — Key#${a.key} | <code>${esc(a.model)}</code>${a.detail ? `\n    └ <i>${esc(a.detail.slice(0, 100))}</i>` : ""}`
       )
       .join("\n");
 
     if (finalText) {
-      const preview = esc(finalText.slice(0, 1000)) + (finalText.length > 1000 ? "\n[... truncated]" : "");
+      const preview = finalText.slice(0, 1000) + (finalText.length > 1000 ? "\n[... truncated]" : "");
       const successMsg = [
-        `✅ <b>BideshPro — Success (${elapsed}s)</b>`,
+        `✅ <b>Success (${elapsed}s)</b>`,
         ``,
         `👤 <b>IP:</b> <code>${esc(ip)}</code>`,
         `🏙 <b>Geo:</b> ${esc(geo.city)}, ${esc(geo.country)}`,
         `🏢 <b>ISP:</b> ${esc(geo.org)}`,
         mapsUrl ? `🗺 <a href="${mapsUrl}">View Maps</a>` : null,
+        `🔍 <b>Tavily:</b> ${tavilyStatus}`,
+        `🤖 <b>Model:</b> <code>${esc(usedModel)}</code> (Key#${usedKeyIdx})`,
         `🔎 <b>Query:</b> <code>${esc(safeQuery)}</code>`,
-        `🌐 <b>Tavily:</b> ${tavilyUsed ? "✅ used" : "⏭ skipped"}`,
-        ``,
-        `🤖 <b>Groq Attempts:</b>`,
-        attemptLines,
         ``,
         `📝 <b>Preview:</b>`,
-        `<pre>${preview}</pre>`,
-      ]
-        .filter((l) => l !== null)
-        .join("\n");
+        `<pre>${esc(preview)}</pre>`,
+      ].filter(Boolean).join("\n");
       await tgSend(botToken, chatId, successMsg);
       return res.json({ text: finalText });
     } else {
@@ -284,9 +277,10 @@ CRITICAL RULES:
         ``,
         `👤 <b>IP:</b> <code>${esc(ip)}</code>`,
         `🔎 <b>Query:</b> <code>${esc(safeQuery)}</code>`,
+        `🔍 <b>Tavily:</b> ${tavilyStatus}`,
         ``,
-        `🤖 <b>Attempts (${attempts.length}):</b>`,
-        attemptLines || "(none)",
+        `🤖 <b>Attempts:</b>`,
+        attemptLines,
       ].join("\n");
       await tgSend(botToken, chatId, failMsg);
       return res.status(500).json({ error: "All AI models are currently busy or failed. Please try again." });
@@ -298,6 +292,5 @@ CRITICAL RULES:
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`BideshPro Backend running on port ${PORT}`);
-});
+// START
+app.listen(PORT, () => console.log(`Render Backend is running on port ${PORT}`));
