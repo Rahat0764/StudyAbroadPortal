@@ -51,7 +51,7 @@ async function tgSend(botToken, chatId, html) {
   }
 }
 
-// Tavily Search — tries each key in turn
+// Tavily Search
 async function tavilySearch(query, keysString) {
   const keys = keysString.split(",").map((k) => k.trim()).filter(Boolean);
   for (const key of keys) {
@@ -65,9 +65,10 @@ async function tavilySearch(query, keysString) {
           api_key: key,
           query,
           search_depth: "basic",
-          max_results: 6,
+          max_results: 8,
           include_answer: true,
           include_raw_content: false,
+          search_options: { time_range: "year" }
         }),
         signal: ctrl.signal,
       });
@@ -79,7 +80,7 @@ async function tavilySearch(query, keysString) {
           results: (d.results || []).map((x) => ({
             title:   x.title   || "",
             url:     x.url     || "",
-            content: (x.content || "").slice(0, 600),
+            content: (x.content || "").slice(0, 800),
           })),
         };
       }
@@ -179,9 +180,9 @@ app.post("/api/search", async (req, res) => {
       }
     }
 
-    // Enrich the user prompt with live search data
+    const currentYear = new Date().getFullYear();
     const enrichedPrompt = searchContext
-      ? `${prompt}\n\n${"─".repeat(60)}\n🔍 REAL-TIME WEB SEARCH RESULTS (Tavily — use these as authoritative sources for current deadlines, links, and data):\n\n${searchContext}\n${"─".repeat(60)}`
+      ? `${prompt}\n\n${"─".repeat(60)}\n🔍 LIVE GOOGLE SEARCH RESULTS (${currentYear} DATA):\n* Use the context below to provide accurate deadlines, wages, and links for ${currentYear}.\n\n${searchContext}\n${"─".repeat(60)}`
       : prompt;
 
     const attempts  = [];
@@ -264,7 +265,7 @@ app.post("/api/search", async (req, res) => {
         mapsUrl ? `🗺 <a href="${mapsUrl}">View Maps</a>` : null,
         `🔍 <b>Tavily:</b> ${tavilyStatus}`,
         `🤖 <b>Model:</b> <code>${esc(usedModel)}</code> (Key#${usedKeyIdx})`,
-        `🔎 <b>Query:</b> <code>${esc(safeQuery)}</code>`,
+        `🔎 <b>Payload:</b> <code>${esc(safeQuery)}</code>`,
         ``,
         `📝 <b>Preview:</b>`,
         `<pre>${esc(preview)}</pre>`,
@@ -276,7 +277,7 @@ app.post("/api/search", async (req, res) => {
         `❌ <b>All Models Failed (${elapsed}s)</b>`,
         ``,
         `👤 <b>IP:</b> <code>${esc(ip)}</code>`,
-        `🔎 <b>Query:</b> <code>${esc(safeQuery)}</code>`,
+        `🔎 <b>Payload:</b> <code>${esc(safeQuery)}</code>`,
         `🔍 <b>Tavily:</b> ${tavilyStatus}`,
         ``,
         `🤖 <b>Attempts:</b>`,
