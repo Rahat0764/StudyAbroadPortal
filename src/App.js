@@ -542,7 +542,7 @@ RULES:
               ))}
             </div>
             <button onClick={() => setView(VIEWS.SEARCH)} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${view === VIEWS.SEARCH ? "bg-[#4a9eff] text-white" : "text-[#7a94ad] hover:text-white bg-[#141f2e] hover:bg-[#1e3045]"}`}>
-              🔍 Ask AI
+              🔍 Ask
             </button>
           </div>
         </div>
@@ -656,7 +656,7 @@ RULES:
 
             <div className="relative mb-10">
               <textarea value={globalQ} onChange={(e) => setGlobalQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGlobalAsk(); }}}
-                placeholder="Ask anything (e.g., What is the minimum wage for international students in Canada in 2026?)..."
+                placeholder="Ask anything..."
                 className="w-full bg-[#070b12] border-2 border-[#1e3045] focus:border-[#4a9eff] rounded-3xl p-6 pr-[130px] text-white theme-text-strong outline-none resize-none min-h-[160px] text-base transition-all shadow-xl" />
               <button onClick={() => handleGlobalAsk()} disabled={loading || !globalQ.trim()}
                 className="absolute bottom-5 right-5 bg-[#4a9eff] hover:bg-[#3b82f6] disabled:opacity-50 text-white font-bold px-7 py-3 rounded-2xl transition-all shadow-lg">
