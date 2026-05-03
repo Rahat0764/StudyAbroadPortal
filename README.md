@@ -5,7 +5,7 @@
   [![Status](https://img.shields.io/badge/Status-Beta-yellow.svg)]()
   [![React](https://img.shields.io/badge/Frontend-React.js-blue.svg)]()
   [![Backend](https://img.shields.io/badge/Backend-Express.js-green.svg)]()
-  [![AI](https://img.shields.io/badge/AI-Google_Gemini-orange.svg)]()
+  [![AI](https://img.shields.io/badge/AI-GROQ-orange.svg)]()
 </div>
 
 ---
