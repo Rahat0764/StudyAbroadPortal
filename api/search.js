@@ -5,7 +5,7 @@ const MAX_RPM = 15;
 
 setInterval(() => rateLimitMap.clear(), 60_000);
 
-// Groq models — tried in order (key × model matrix)
+// Groq models
 const GROQ_MODELS = [
   { id: "llama-3.3-70b-versatile"  },
   { id: "llama-3.1-70b-versatile"  },
@@ -45,7 +45,7 @@ async function tgSend(botToken, chatId, html) {
   }
 }
 
-// Tavily Search — tries each key in turn
+// Tavily Search 
 async function tavilySearch(query, keysString) {
   const keys = keysString.split(",").map((k) => k.trim()).filter(Boolean);
   for (const key of keys) {
@@ -59,9 +59,12 @@ async function tavilySearch(query, keysString) {
           api_key: key,
           query,
           search_depth: "basic",
-          max_results: 6,
+          max_results: 8, // Increased to get better data on part time jobs/deadlines
           include_answer: true,
           include_raw_content: false,
+          search_options: {
+             time_range: "year" // Force recent results
+          }
         }),
         signal: ctrl.signal,
       });
@@ -73,7 +76,7 @@ async function tavilySearch(query, keysString) {
           results: (d.results || []).map((x) => ({
             title:   x.title   || "",
             url:     x.url     || "",
-            content: (x.content || "").slice(0, 600),
+            content: (x.content || "").slice(0, 800),
           })),
         };
       }
@@ -108,6 +111,8 @@ export default async function handler(req, res) {
     lat:         parseFloat(locationData?.latitude)  || null,
     lon:         parseFloat(locationData?.longitude) || null,
   };
+  
+  // Notice: Frontend now passes a highly optimized natural language query in searchQuery.
   const safeQuery = String(searchQuery || "Unknown").slice(0, 400);
 
   const logAndReturnError = async (statusCode, clientMsg, tgDetail) => {
@@ -124,7 +129,6 @@ export default async function handler(req, res) {
     return res.status(statusCode).json({ error: clientMsg });
   };
 
-  // CORS
   const origin    = req.headers.origin || "";
   const isAllowed =
     !origin ||
@@ -141,7 +145,6 @@ export default async function handler(req, res) {
   if (req.method !== "POST")
     return logAndReturnError(405, "Method not allowed", `Invalid method: ${req.method}`);
 
-  // Guards
   if (activeRequests >= MAX_CONCURRENT)
     return logAndReturnError(503, "Server too busy. Try again shortly.", "MAX_CONCURRENT reached");
 
@@ -160,7 +163,6 @@ export default async function handler(req, res) {
     ? `https://www.google.com/maps?q=${geo.lat},${geo.lon}`
     : null;
 
-  // Keys
   const groqKeysStr = process.env.GROQ_API_KEYS;
   if (!groqKeysStr) return logAndReturnError(500, "Server config error", "GROQ_API_KEYS missing");
   const groqKeys = groqKeysStr.split(",").map((k) => k.trim()).filter(Boolean);
@@ -171,7 +173,6 @@ export default async function handler(req, res) {
   activeRequests++;
 
   try {
-    // ── Step 1: Tavily real-time web search ──────────────────────────────
     let searchContext = "";
     let tavilyStatus  = tavilyKeysStr ? "⏳ pending" : "⏭ skipped (no keys)";
 
@@ -193,12 +194,11 @@ export default async function handler(req, res) {
       }
     }
 
-    // Enrich prompt with live search data
+    const currentYear = new Date().getFullYear();
     const enrichedPrompt = searchContext
-      ? `${prompt}\n\n${"─".repeat(60)}\n🔍 REAL-TIME WEB SEARCH RESULTS (Tavily — use these as authoritative sources for current deadlines, links, and data):\n\n${searchContext}\n${"─".repeat(60)}`
+      ? `${prompt}\n\n${"─".repeat(60)}\n🔍 LIVE GOOGLE SEARCH RESULTS (${currentYear} DATA):\n* Use the context below to provide accurate deadlines, wages, and links for ${currentYear}.\n\n${searchContext}\n${"─".repeat(60)}`
       : prompt;
 
-    // ── Step 2: Groq generation ──────────────────────────────────────────
     const attempts  = [];
     let finalText   = null;
     let usedKeyIdx  = -1;
@@ -288,7 +288,7 @@ export default async function handler(req, res) {
         : `📍 <b>Coords:</b> N/A`,
       ``,
       `🔍 <b>Tavily Search:</b> ${tavilyStatus}`,
-      `🔎 <b>Search/Cache Key:</b> <code>${esc(safeQuery)}</code>`,
+      `🔎 <b>Search Payload:</b> <code>${esc(safeQuery)}</code>`,
       `⏱ <b>Total response time:</b> ${elapsed}s`,
       ``,
       `🤖 <b>Model Attempts (${attempts.length} total):</b>`,
